@@ -1,6 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "utils/conversion.h"
+
 #include <stdatomic.h>
 #include <stddef.h>
 

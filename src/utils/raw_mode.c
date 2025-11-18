@@ -7,33 +7,26 @@
 struct termios orig_term;
 struct termios tmp;
 
-void disable_raw_mode()
-{
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_term);
-}
-
-void enable_raw_mode()
+void raw_mode_setup()
 {
 	tcgetattr(STDIN_FILENO, &orig_term);
-	atexit(disable_raw_mode); // restore on exit
+	atexit(enable_input); // restore on exit
 
 	tmp = orig_term;
 	tmp.c_lflag &= ~(ECHO | ICANON); // turn off echo and canonical mode
 	tmp.c_cc[VMIN] = 1;		 // read one char at a time
 	tmp.c_cc[VTIME] = 0;
 
+	disable_input();
+}
+
+void disable_input()
+{
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &tmp);
 }
 
 void enable_input()
 {
-	tmp.c_lflag |= ECHO;
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &tmp);
+	tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_term);
 	tcflush(STDIN_FILENO, TCIFLUSH);
-}
-
-void disable_input()
-{
-	tmp.c_lflag |= ECHO;
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &tmp);
 }

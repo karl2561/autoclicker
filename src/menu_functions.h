@@ -1,7 +1,14 @@
 #ifndef MENUFUNCTIONS_H
 #define MENUFUNCTIONS_H
 
+#include "autoclick_thrd.h"
+#include "config.h"
+#include "utils/conversion.h"
+#include "utils/create_pattern.h"
+#include "utils/printLine.h"
+#include "utils/raw_mode.h"
 #include "utils/slist.h"
+#include "utils/time.h"
 
 /**/
 int get_number();
@@ -14,11 +21,6 @@ void change_line(int position);
 
 /* Create a new pattern */
 int pattern();
-
-struct timer_arg {
-	unsigned int ms;
-	struct printed_line *head;
-};
 
 /* Creates a timer for timer_thread */
 void click_timer();

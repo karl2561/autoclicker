@@ -1,19 +1,15 @@
 #include "menu_functions.h"
-#include "autoclick_thrd.h"
 #include "config.h"
 #include "utils/conversion.h"
-#include "utils/create_pattern.h"
-#include "utils/printLine.h"
-#include "utils/raw_mode.h"
-#include "utils/slist.h"
 
-#include <errno.h>
+#include <ctype.h>
 #include <fcntl.h>
+#include <linux/input-event-codes.h>
 #include <stdarg.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
 #include <termios.h>
 #include <threads.h>
@@ -23,33 +19,70 @@ struct slist *start_line = nullptr;
 
 #define ESC_KEY 27
 
+ssize_t read_buf(int fd, char *buf)
+{
+	return read(fd, buf, MAX_LINE_LENGTH);
+}
+
+int get_char_stdin()
+{
+	int fd = STDIN_FILENO;
+	char buf[MAX_LINE_LENGTH];
+	ssize_t n;
+	while (1) {
+		n = read_buf(fd, buf);
+		if (n != 1)
+			continue;
+		return buf[0];
+	}
+	return -1;
+}
+
+int get_keycode_stdin()
+{
+	int fd = STDIN_FILENO;
+	char buf[MAX_LINE_LENGTH];
+	ssize_t n;
+	while (1) {
+		n = read_buf(fd, buf);
+		if (n == 0)
+			continue;
+		return ascii_to_evcode(buf, n);
+	}
+	return -1;
+}
+
 int get_number()
 {
 	struct slist *head = nullptr;
+	int c = 1, pos = 0;
 start:
 	int result = 0;
 
 	struct printed_line *line = create_line("Enter number: ");
 	head = slist_push(head, line);
 
-	disable_raw_mode();
-	tcflush(STDIN_FILENO, TCIFLUSH);
-
-	char input[MAX_LINE_LENGTH];
-	char *end;
-
-	if (!fgets(input, MAX_LINE_LENGTH, stdin))
-		return 0;
-
-	enable_raw_mode();
-	head = slist_push(head, strdup(input));
-
-	errno = 0;
-	result = strtol(input, &end, 10);
-
-	if (errno != 0 || end == input) {
-		line = create_line("Invalid number.\n");
+	while (1) {
+		c = get_char_stdin();
+		if (c == ESC_KEY) {
+			slist_delete(&head, remove_line);
+			return -1;
+		} else if (c == EOF || c == '\n') {
+			line = create_line("\n");
+			head = slist_push(head, line);
+			break;
+		} else if (pos > 0 && c == '\b') {
+			head = slist_pop(head, remove_line);
+			result /= 10;
+			pos--;
+			continue;
+		} else if (!isdigit(c))
+			continue;
+		++pos;
+		int value = c - '0';
+		line = create_line("%d", value);
 		head = slist_push(head, line);
+		result = 10 * result + value;
 	}
 
 	if (!result) {
@@ -60,11 +93,11 @@ start:
 	}
 
 	switch (exit_function(&head)) {
-	case 1:
+	case 'r':
 		goto start;
 	case -1:
 		result = -1;
-	case 0:
+	case '\n':
 	}
 
 	return result;
@@ -111,16 +144,14 @@ void handle_menu()
 		create_line("Press ESC to exit this menu\n");
 	head = slist_push(head, line);
 
-	disable_raw_mode();
-	tcflush(STDIN_FILENO, TCIFLUSH);
 start:
-	int c = getchar();
+	int c = get_char_stdin();
 	if (c == ESC_KEY) {
 		slist_delete(&head, remove_line);
 		return;
 	}
 	int value = c - '0';
-	if (!(j & (1 << value))) {
+	if (!isdigit(c) || !(j & (1 << value))) {
 		line = create_line("Invalid selection, try again\n");
 		head = slist_push(head, line);
 		goto start;
@@ -140,8 +171,9 @@ select_key:
 	line = create_line(
 		"Press the key you wish to be the new activation key\n");
 	head = slist_push(head, line);
-	c = getchar();
-	if (c == ESC_KEY) {
+
+	c = get_keycode_stdin();
+	if (c == -1) {
 		slist_delete(&head, remove_line);
 		return;
 	}
@@ -161,17 +193,16 @@ select_key:
 		}
 	}
 	free(name);
-	enable_raw_mode();
 
 	line = create_line("New activation key will be: %s\n", kctc(c));
 	head = slist_push(head, line);
 
 	switch (exit_function(&head)) {
-	case 1:
+	case 'r':
 		goto start;
 	case -1:
 		return;
-	case 0:
+	case '\n':
 		break;
 	}
 
@@ -195,12 +226,12 @@ start:
 	head = slist_push(head, line);
 
 	switch (exit_function(&head)) {
-	case 1:
+	case 'r':
 		goto start;
 	case -1:
-		enable_raw_mode();
+		disable_input();
 		return;
-	case 0:
+	case '\n':
 	}
 	cfg.interval_ms = result;
 	change_line(interval_ms);
@@ -212,9 +243,6 @@ void change_line(int position)
 		slist_delete(&start_line, remove_line);
 	}
 
-	printf("\033[F\033[2K");
-	printf("\033[F\033[2K");
-	printf("\033[F\033[2K");
 	int line;
 	for (line = cfg_map_length; line > position; line--) {
 		printf("\033[F");
@@ -249,12 +277,12 @@ start:
 	head = slist_push(head, line);
 
 	switch (exit_function(&head)) {
-	case 1:
+	case 'r':
 		goto start;
 	case -1:
 		slist_delete(&head_pattern, remove_item);
 		return 0;
-	case 0:
+	case '\n':
 		break;
 	}
 
@@ -276,11 +304,11 @@ start:
 	head = slist_push(head, line);
 
 	switch (exit_function(&head)) {
-	case 1:
+	case 'r':
 		goto start;
 	case -1:
 		return;
-	case 0:
+	case '\n':
 	}
 
 	struct timer_arg *arg = malloc(sizeof(struct timer_arg));
@@ -306,11 +334,11 @@ start:
 	head = slist_push(head, line);
 
 	switch (exit_function(&head)) {
-	case 1:
+	case 'r':
 		goto start;
 	case -1:
 		return;
-	case 0:
+	case '\n':
 	}
 
 	struct timer_arg *arg = malloc(sizeof(struct timer_arg));
@@ -336,24 +364,16 @@ int exit_function(struct slist **head_ptr)
 	head = slist_push(head, line);
 
 	int c;
-	disable_raw_mode();
-	tcflush(STDIN_FILENO, TCIFLUSH);
-
-	while ((c = getchar()) != EOF) {
-		if (c == 'r' || c == 'R') {
-			c = 1;
+	while ((c = get_char_stdin()) != EOF) {
+		if (c == 'r') {
 			break;
 		} else if (c == '\n') {
-			c = 0;
 			break;
 		} else if (c == ESC_KEY) {
-			c = -1;
 			break;
 		}
 	}
 
-	enable_raw_mode();
 	slist_delete(&head, remove_line);
-
 	return c;
 }

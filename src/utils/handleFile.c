@@ -62,7 +62,7 @@ int create_keypress_setup(int *flags)
 	if (!fd) {
 		return 0;
 	}
-	enable_raw_mode();
+	raw_mode_setup();
 
 	*flags = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, *flags | O_NONBLOCK);
@@ -73,6 +73,6 @@ int create_keypress_setup(int *flags)
 void remove_keypress_setup(int fd, int flags)
 {
 	fcntl(fd, F_SETFL, flags);
-	disable_raw_mode();
+	enable_input();
 	file_close(fd);
 }

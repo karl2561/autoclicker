@@ -1,11 +1,4 @@
 #include "autoclick_thrd.h"
-#include "config.h"
-#include "menu_functions.h"
-#include "utils/create_pattern.h"
-#include "utils/handleFile.h"
-#include "utils/printLine.h"
-#include "utils/sleep.h"
-#include "utils/slist.h"
 
 #include <fcntl.h>
 #include <linux/uinput.h>

@@ -1,6 +1,4 @@
 #include "create_pattern.h"
-#include "handleFile.h"
-#include "slist.h"
 
 #include <fcntl.h>
 #include <linux/input-event-codes.h>

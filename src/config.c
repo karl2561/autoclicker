@@ -1,5 +1,4 @@
 #include "config.h"
-#include "utils/conversion.h"
 
 #include <linux/input-event-codes.h>
 #include <stddef.h>

@@ -194,3 +194,132 @@ const char *kctc(int code)
 		return "UNKNOWN";
 	}
 }
+
+int ascii_to_evcode(const char *buf, size_t len)
+{
+	if (len == 0 || buf == NULL)
+		return -1;
+
+	if (len == 1) {
+		if (buf[0] >= 'a' && buf[0] <= 'z')
+			return KEY_A + (buf[0] - 'a');
+		if (buf[0] >= 'A' && buf[0] <= 'Z')
+			return KEY_A + (buf[0] - 'A');
+		if (buf[0] == '0')
+			return KEY_0;
+		if (buf[0] >= '0' && buf[0] <= '9')
+			return KEY_1 + (buf[0] - '1'); // note: '0' is KEY_0
+
+		switch (buf[0]) {
+		case '-':
+			return KEY_MINUS;
+		case '=':
+			return KEY_EQUAL;
+		case '[':
+			return KEY_LEFTBRACE;
+		case ']':
+			return KEY_RIGHTBRACE;
+		case ';':
+			return KEY_SEMICOLON;
+		case '\'':
+			return KEY_APOSTROPHE;
+		case '`':
+			return KEY_GRAVE;
+		case '\\':
+			return KEY_BACKSLASH;
+		case ',':
+			return KEY_COMMA;
+		case '.':
+			return KEY_DOT;
+		case '/':
+			return KEY_SLASH;
+		case ' ':
+			return KEY_SPACE;
+		case '\t':
+			return KEY_TAB;
+		case '\n':
+		case '\r':
+			return KEY_ENTER;
+		case '\033':
+			return KEY_ESC;
+		case '\b':
+			return KEY_BACKSPACE;
+		case '\177':
+			return KEY_DELETE;
+		}
+	}
+
+	// F1-F4 (ESC O P..S)
+	if (len == 3 && buf[0] == 0x1B && buf[1] == 'O') {
+		switch (buf[2]) {
+		case 'P':
+			return KEY_F1;
+		case 'Q':
+			return KEY_F2;
+		case 'R':
+			return KEY_F3;
+		case 'S':
+			return KEY_F4;
+		}
+	}
+
+	// F5-F12 (ESC [ 1 5 ~ .. ESC [ 2 4 ~)
+	if (len == 5 && buf[0] == 0x1B && buf[1] == '[' && buf[4] == '~') {
+		if (buf[2] == '1') {
+			switch (buf[3]) {
+			case '5':
+				return KEY_F5;
+			case '7':
+				return KEY_F6;
+			case '8':
+				return KEY_F7;
+			case '9':
+				return KEY_F8;
+			}
+		}
+		if (buf[2] == '2') {
+			switch (buf[3]) {
+			case '0':
+				return KEY_F9;
+			case '1':
+				return KEY_F10;
+			case '3':
+				return KEY_F11;
+			case '4':
+				return KEY_F12;
+			}
+		}
+	}
+
+	if (len == 3 && buf[0] == '\033' && buf[1] == '[') {
+		switch (buf[2]) {
+		case 'A':
+			return KEY_UP;
+		case 'B':
+			return KEY_DOWN;
+		case 'C':
+			return KEY_RIGHT;
+		case 'D':
+			return KEY_LEFT;
+		}
+	}
+
+	if (len >= 3 && buf[0] == '\033' && buf[1] == '[') {
+		if (len == 3 && buf[2] == 'H')
+			return KEY_HOME;
+		if (len == 3 && buf[2] == 'F')
+			return KEY_END;
+		if (len == 4 && buf[2] == '1' && buf[3] == '~')
+			return KEY_HOME;
+		if (len == 4 && buf[2] == '5' && buf[3] == '~')
+			return KEY_PAGEUP;
+		if (len == 4 && buf[2] == '6' && buf[3] == '~')
+			return KEY_PAGEDOWN;
+		if (len == 4 && buf[2] == '2' && buf[3] == '~')
+			return KEY_INSERT;
+		if (len == 4 && buf[2] == '3' && buf[3] == '~')
+			return KEY_DELETE;
+	}
+
+	return -1; // unknown
+}

@@ -1,6 +1,8 @@
 #ifndef HANDLE_FILE_H
 #define HANDLE_FILE_H
 
+#include "raw_mode.h"
+
 /* Takes a path and flags to open a sys file */
 [[nodiscard]] int file_open(char *path, int flags);
 

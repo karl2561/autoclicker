@@ -1,7 +1,4 @@
 #include "keypress.h"
-#include "config.h"
-#include "menu_functions.h"
-#include "utils/handleFile.h"
 
 #include <asm-generic/errno.h>
 #include <errno.h>
