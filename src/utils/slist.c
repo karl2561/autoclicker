@@ -2,12 +2,12 @@
 
 #include <stdlib.h>
 
-[[nodiscard]] void *slist_peek(struct slist *head)
+void *slist_peek(struct slist *head)
 {
 	return head != nullptr ? head->data : nullptr;
 }
 
-[[nodiscard]] struct slist *slist_push(struct slist *head, void *data)
+struct slist *slist_push(struct slist *head, void *data)
 {
 	struct slist *const new_head = malloc(sizeof(struct slist));
 	if (!new_head)
@@ -19,8 +19,7 @@
 	return new_head;
 }
 
-[[nodiscard]] struct slist *slist_pop(
-	struct slist *head, void (*func)(void *data))
+struct slist *slist_pop(struct slist *head, void (*func)(void *data))
 {
 	if (!head)
 		return nullptr;
@@ -34,7 +33,7 @@
 	return next;
 }
 
-[[nodiscard]] struct slist *slist_append(struct slist *tail, void *data)
+struct slist *slist_append(struct slist *tail, void *data)
 {
 	struct slist *const new_node = malloc(sizeof(struct slist));
 	if (!new_node)
@@ -58,4 +57,15 @@ void slist_delete(struct slist **head_ptr, void (*func)(void *data))
 	while ((head = slist_pop(head, func)))
 		;
 	*head_ptr = nullptr;
+}
+
+void slist_forEach(struct slist **head_ptr, void (*func)(void *data))
+{
+	if (!head_ptr || !*head_ptr)
+		return;
+	struct slist *head = *head_ptr;
+	while (head) {
+		func(head->data);
+		head = head->next;
+	}
 }

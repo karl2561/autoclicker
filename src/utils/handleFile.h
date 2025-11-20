@@ -1,13 +1,9 @@
 #ifndef HANDLE_FILE_H
 #define HANDLE_FILE_H
 
+#include "config.h"
+#include "constants.h"
 #include "raw_mode.h"
-
-/* Takes a path and flags to open a sys file */
-[[nodiscard]] int file_open(char *path, int flags);
-
-/* Takes the int of an open sys file to close it */
-void file_close(int fd);
 
 /* Creates an autokey setup, returns file connection */
 [[nodiscard]] int create_autokey_setup(int keycode);
@@ -20,5 +16,11 @@ void remove_autokey_setup(int fd);
 
 /* Closes the setup, restores old flags */
 void remove_keypress_setup(int fd, int flags);
+
+/* Opens the config file, reads it's content to load existing settings */
+extern int read_config();
+
+/* Opens the config file,  overwrites it's content with the current settings */
+extern int write_config();
 
 #endif

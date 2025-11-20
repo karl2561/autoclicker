@@ -1,11 +1,7 @@
 #ifndef SLEEP_H
 #define SLEEP_H
 
-struct timer_arg {
-	unsigned int ms;
-	struct printed_line *head;
-};
-
-extern void sleep_ms(int ms);
+/* takes in a time in ms, returns a timestruct. Caller must free memomry */
+[[nodiscard]] struct timespec *create_timespec(int ms);
 
 #endif

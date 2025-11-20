@@ -1,5 +1,4 @@
 #include "handleFile.h"
-#include "raw_mode.h"
 
 #include <fcntl.h>
 #include <linux/uinput.h>
@@ -8,34 +7,36 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#define PATH_UINPUT "/dev/uinput"
-#define PATH_KEYEV "/dev/input/event3"
-
-int file_open(char *path, int flags)
-{
-	int fd = open(path, flags);
-	if (fd < 0)
-		return 0;
-
-	return fd;
-}
-
-void file_close(int fd)
-{
-	close(fd);
-	return;
-}
-
 int create_autokey_setup(int keycode)
 {
-	int fd = file_open(PATH_UINPUT, O_WRONLY | O_NONBLOCK);
-	if (!fd)
-		return 0;
+	int fd = open(PATH_UINPUT, O_WRONLY | O_NONBLOCK);
+	if (fd < 0)
+		return fd;
 
 	ioctl(fd, UI_SET_EVBIT, EV_KEY);
-	ioctl(fd, UI_SET_RELBIT, EV_REL);
 	ioctl(fd, UI_SET_KEYBIT, keycode);
+
+	ioctl(fd, UI_SET_EVBIT, EV_REL);
+	ioctl(fd, UI_SET_RELBIT, REL_X);
+	ioctl(fd, UI_SET_RELBIT, REL_Y);
+
+	ioctl(fd, UI_SET_EVBIT, EV_ABS);
+	ioctl(fd, UI_SET_ABSBIT, ABS_X);
+	ioctl(fd, UI_SET_ABSBIT, ABS_Y);
+
 	ioctl(fd, UI_SET_EVBIT, EV_SYN);
+
+	struct uinput_abs_setup abs_setup;
+	memset(&abs_setup, 0, sizeof(abs_setup));
+	abs_setup.code = ABS_X;
+	abs_setup.absinfo.minimum = 0;
+	abs_setup.absinfo.maximum = SCREENHEIGHT;
+	ioctl(fd, UI_ABS_SETUP, &abs_setup);
+
+	abs_setup.code = ABS_Y;
+	abs_setup.absinfo.minimum = 0;
+	abs_setup.absinfo.maximum = SCREENWIDTH;
+	ioctl(fd, UI_ABS_SETUP, &abs_setup);
 
 	struct uinput_setup usetup;
 	memset(&usetup, 0, sizeof(usetup));
@@ -44,6 +45,7 @@ int create_autokey_setup(int keycode)
 	usetup.id.vendor = 0x1234;
 	usetup.id.product = 0x5678;
 	usetup.id.version = 1;
+
 	ioctl(fd, UI_DEV_SETUP, &usetup);
 	ioctl(fd, UI_DEV_CREATE);
 
@@ -53,14 +55,14 @@ int create_autokey_setup(int keycode)
 void remove_autokey_setup(int fd)
 {
 	ioctl(fd, UI_DEV_DESTROY);
-	file_close(fd);
+	close(fd);
 }
 
 int create_keypress_setup(int *flags)
 {
-	int fd = file_open(PATH_KEYEV, O_RDONLY);
-	if (!fd) {
-		return 0;
+	int fd = open(PATH_KEYEV, O_RDONLY);
+	if (fd < 0) {
+		return fd;
 	}
 	raw_mode_setup();
 
@@ -73,6 +75,54 @@ int create_keypress_setup(int *flags)
 void remove_keypress_setup(int fd, int flags)
 {
 	fcntl(fd, F_SETFL, flags);
-	enable_input();
-	file_close(fd);
+	close(fd);
+}
+
+static void insert_from_configs(int position, char *line)
+{
+	int length = strlen(cfg_map[position].name);
+	if (strncmp(line, cfg_map[position].name, length))
+		return;
+
+	int tmp_value;
+	// returns 1 if it read one int successfully.
+	// returns 0 if it saw something, but couldn't parsse it
+	// returns EOF (usually -1) -> end of input or empty line
+	if (sscanf(line + length + 1, "%d", &tmp_value) != 1)
+		return;
+
+	if (cfg_map[position].type == CFG_KEY)
+		*(int *)cfg_map[position].field = tmp_value;
+	else if (cfg_map[position].type == CFG_INT_A)
+		atomic_store((atomic_int *)cfg_map[position].field, tmp_value);
+}
+
+int read_config()
+{
+	FILE *fconf = fopen(PATH_CONFIG_SAVE, "r");
+	if (!fconf)
+		return -1;
+
+	char line[MAX_LINE_LENGTH];
+	while (fgets(line, sizeof(line), fconf))
+		for (size_t i = 0; i < cfg_map_length; i++)
+			insert_from_configs(i, line);
+
+	fclose(fconf);
+	return 0;
+}
+
+int write_config()
+{
+	FILE *fconf = fopen(PATH_CONFIG_SAVE, "w");
+	if (!fconf)
+		return -1;
+
+	for (size_t i = 0; i < cfg_map_length; i++) {
+		int value = convert_field_to_int(i);
+		fprintf(fconf, "%s=%d\n", cfg_map[i].name, value);
+	}
+
+	fclose(fconf);
+	return 0;
 }

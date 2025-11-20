@@ -14,8 +14,7 @@ int main()
 	unsigned count = 0;
 	while (body) {
 		element = body->data;
-		printf("x: %5d, y: %5d\n", element->x_change,
-			element->y_change);
+		printf("x: %5d, y: %5d\n", element->x, element->y);
 		count++;
 		body = body->next;
 	}
