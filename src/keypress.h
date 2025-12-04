@@ -1,11 +1,11 @@
 #ifndef MENUFUNCTIONS_H
 #define MENUFUNCTIONS_H
 
-#include "autoclick_thrd.h"
+#include "create_pattern.h"
+#include "threads.h"
 #include "utils/config.h"
 #include "utils/conversion.h"
-#include "utils/create_pattern.h"
-#include "utils/printLine.h"
+#include "utils/print_line.h"
 #include "utils/raw_mode.h"
 #include "utils/slist.h"
 #include "utils/time.h"

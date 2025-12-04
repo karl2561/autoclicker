@@ -1,8 +1,8 @@
 #ifndef PRINTLINE_H
 #define PRINTLINE_H
 
-#include "config.h" // only nessary if I keep change line
 #include "constants.h"
+#include "conversion.h"
 #include "slist.h"
 
 /* Counts how often c appears in s */
@@ -25,7 +25,7 @@ void remove_line(void *data);
 [[nodiscard]] int exit_function(struct slist **head_ptr);
 
 /* Waits for the user to close the menu */
-void close_menu(struct slist **head_ptr);
+void close_menu(struct slist **head_ptr, int key_code);
 
 /* Retrieves a char from stdin, ignores all escaped characters */
 [[nodiscard]] int get_char_stdin();

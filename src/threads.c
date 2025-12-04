@@ -1,5 +1,4 @@
-#include "autoclick_thrd.h"
-#include "utils/time.h"
+#include "threads.h"
 
 #include <fcntl.h>
 #include <linux/input.h>
@@ -12,9 +11,9 @@
 #include <time.h>
 #include <unistd.h>
 
-struct autoclick_config ac = {.mode = AUTOCLICK_NORMAL};
+autoclicker_task ac = {.mode = AUTOCLICK_NORMAL};
 
-void ac_set(enum autoclick_modes new_mode, unsigned i)
+void ac_set(autoclick_modes new_mode, unsigned i)
 {
 	switch (new_mode) {
 	case AUTOCLICK_TIMER:
@@ -39,6 +38,41 @@ void ac_clear()
 	case AUTOCLICK_NORMAL:
 		ac.mode = AUTOCLICK_NORMAL;
 	}
+}
+
+mtx_t mutex;
+cnd_t task_cond;
+atomic_bool has_task = false;
+atomic_bool running = true; // The program is running
+
+int autoclicker_worker(void *arg)
+{
+	(void)arg;
+	while (atomic_load(&running)) {
+		mtx_lock(&mutex);
+		while (!atomic_load(&has_task) && atomic_load(&running)) {
+			cnd_wait(&task_cond, &mutex);
+		}
+		if (!atomic_load(&start)) {
+			mtx_unlock(&mutex);
+			break;
+		}
+	}
+
+	autoclicker_task task = ac;
+	atomic_store(&has_task, false);
+	mtx_unlock(&mutex);
+
+	switch (task.mode) {
+	case AUTOCLICK_NORMAL:
+		autoclick_thread(nullptr);
+	case AUTOCLICK_TIMER:
+		autoclick_thread(nullptr);
+	case AUTOCLICK_AMOUNT:
+		autoclick_thread(nullptr);
+	}
+
+	return 0;
 }
 
 void write_click_event(int fd, int keycode)
@@ -183,5 +217,12 @@ int amount_thread(void *arg)
 	ac_clear();
 	atomic_store(&start, false);
 	remove_autokey_setup(fd);
+	return 0;
+}
+
+int delete_timer(void *arg)
+{
+	(void)arg;
+
 	return 0;
 }

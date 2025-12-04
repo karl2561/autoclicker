@@ -1,9 +1,9 @@
 #ifndef RECORD_PATTERN_H
 #define RECORD_PATTERN_H
 
-#include "constants.h"
-#include "handleFile.h"
-#include "slist.h"
+#include "utils/constants.h"
+#include "utils/handle_file.h"
+#include "utils/slist.h"
 
 /* Describes changes in the x and y axis */
 struct Movement {

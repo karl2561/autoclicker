@@ -1,6 +1,4 @@
-#include "printLine.h"
-#include "conversion.h"
-#include "slist.h"
+#include "print_line.h"
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -102,13 +100,18 @@ int exit_function(struct slist **head_ptr)
 	return c;
 }
 
-void close_menu(struct slist **head_ptr)
+bool is_stop_char(int key_code, int c)
+{
+	return c == EOF || c == '\n' || c == ESC_KEY || c == key_code;
+}
+
+void close_menu(struct slist **head_ptr, int key_code)
 {
 	if (!head_ptr)
 		return;
 
 	int c;
-	while ((c = get_char_stdin()) != EOF && c != ESC_KEY)
+	while ((c = get_char_stdin()) != EOF && !is_stop_char(key_code, c))
 		;
 
 	slist_delete(head_ptr, remove_line);

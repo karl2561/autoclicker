@@ -1,14 +1,11 @@
-#include "src/keypress.h"
-#include "src/utils/config.h"
-#include "src/utils/conversion.h"
-#include "src/utils/handleFile.h"
-#include "src/utils/printLine.h"
-#include "src/utils/slist.h"
+#include "autoclicker.h"
 
 #include <stdio.h>
 #include <threads.h>
 
 struct slist *head = nullptr;
+mtx_t mutex;
+cnd_t task_cond;
 
 int main()
 {
@@ -25,8 +22,8 @@ int main()
 		return 1;
 	}
 
-	line = create_line("Autoclicker running.\nPress %s to show "
-			   "info, %s to exit the program or menu.\n",
+	line = create_line(
+		"Press %s to show info, %s to exit the program or menu.\n",
 		kctc(cfg.key_show_config), kctc(cfg.key_quit));
 	head = slist_push(head, line);
 

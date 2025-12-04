@@ -32,7 +32,6 @@ struct slist *create_pattern()
 	struct slist *tail = nullptr;
 
 	int x = 0, y = 0;
-	int x_total = 0, y_total = 0;
 	while (read(fd, &ev, sizeof(ev)) > 0) {
 		if (ev.type == EV_KEY && ev.code == BTN_RIGHT)
 			break;
@@ -53,11 +52,9 @@ struct slist *create_pattern()
 			if (!tail)
 				goto error;
 
-			x_total -= x, y_total -= y;
 			x = 0, y = 0;
 		}
 	}
-	tail = slist_append(tail, create_input(x_total, y_total));
 
 	return head;
 error:

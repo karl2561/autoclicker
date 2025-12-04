@@ -1,28 +1,28 @@
 #ifndef AUTOCLICK_H
 #define AUTOCLICK_H
 
+#include "create_pattern.h"
 #include "utils/config.h"
-#include "utils/create_pattern.h"
-#include "utils/handleFile.h"
-#include "utils/printLine.h"
+#include "utils/handle_file.h"
+#include "utils/print_line.h"
 #include "utils/slist.h"
 #include "utils/time.h"
 
-enum autoclick_modes {
+typedef enum {
 	AUTOCLICK_NORMAL,
 	AUTOCLICK_TIMER,
 	AUTOCLICK_AMOUNT,
-};
+} autoclick_modes;
 
-struct autoclick_config {
-	enum autoclick_modes mode;
+typedef struct {
+	autoclick_modes mode;
 	unsigned i;
-};
+} autoclicker_task;
 
-extern struct autoclick_config ac;
+extern autoclicker_task ac;
 
 /* Switches the mode of the autoclicker and set the arg */
-void ac_set(enum autoclick_modes new_mode, unsigned i);
+void ac_set(autoclick_modes new_mode, unsigned i);
 
 /* Thread that autoclicks when start is toggled */
 extern int autoclick_thread(void *arg);

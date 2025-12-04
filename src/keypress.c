@@ -1,5 +1,4 @@
 #include "keypress.h"
-#include "autoclick_thrd.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -55,7 +54,7 @@ void print_config()
 		head = slist_push(head, line);
 	}
 
-	close_menu(&head);
+	close_menu(&head, cfg.key_menu);
 }
 
 void change_keybindings()
