@@ -3,11 +3,13 @@
  * @brief Main entry point and event loop for the autoclicker application.
  */
 #include "autoclicker.h"
+#include "worker.h"
 
 #include <stdio.h>
 #include <threads.h>
 
-/** @brief Global head of the linked list for managing printed lines on the screen. */
+/** @brief Global head of the linked list for managing printed lines on the
+ * screen. */
 struct slist *head = nullptr;
 
 /**
@@ -36,6 +38,7 @@ int main()
 		return 1;
 	}
 
+	start_worker();
 	line = create_line(
 		"Press %s to show info, %s to exit the program or menu.\n",
 		kctc(cfg.key_show_config), kctc(cfg.key_quit));
@@ -71,6 +74,7 @@ int main()
 		return 1;
 	}
 
+	stop_worker();
 	atomic_store(&worker_run, false);
 
 	remove_keypress_setup(fd, flags);

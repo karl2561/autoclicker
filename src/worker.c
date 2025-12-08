@@ -21,13 +21,15 @@ atomic_bool worker_run = false;
 /** @brief The worker thread identifier. */
 thrd_t worker_thread;
 
-/** @brief The job definition for the worker thread, including task and sync primitives. */
+/** @brief The job definition for the worker thread, including task and sync
+ * primitives. */
 static worker_job_t job; // always auto zero-initialized!
 
 /**
  * @brief Sets the mode and argument for the next autoclicker task.
  * @param new_mode The `autoclick_modes` to set.
- * @param i An unsigned integer argument for the mode (e.g., time in ms or click count).
+ * @param i An unsigned integer argument for the mode (e.g., time in ms or click
+ * count).
  */
 void ac_set(autoclick_modes new_mode, unsigned i)
 {
@@ -48,9 +50,11 @@ void ac_clear()
 }
 
 /**
- * @brief Sets the mouse pattern for the worker, taking ownership of the provided list.
+ * @brief Sets the mouse pattern for the worker, taking ownership of the
+ * provided list.
  * @details If a previous pattern exists, it is freed.
- * @param new_pattern A pointer to the head of an `slist` containing the new pattern.
+ * @param new_pattern A pointer to the head of an `slist` containing the new
+ * pattern.
  */
 void ac_set_pattern(struct slist *new_pattern)
 {
@@ -223,10 +227,12 @@ int autoclick_thread(void *arg)
 }
 
 /**
- * @brief A thread that acts as a timer, stopping the autoclicker after a set duration.
- * @details It calculates the end time and runs a loop, updating a "time remaining"
- * display. The loop continues until the time expires or `worker_run` becomes false.
- * It then sets `worker_run` to false to stop the accompanying `autoclick_thread`.
+ * @brief A thread that acts as a timer, stopping the autoclicker after a set
+ * duration.
+ * @details It calculates the end time and runs a loop, updating a "time
+ * remaining" display. The loop continues until the time expires or `worker_run`
+ * becomes false. It then sets `worker_run` to false to stop the accompanying
+ * `autoclick_thread`.
  * @param arg An unused argument.
  * @return Always returns 0.
  */
@@ -292,7 +298,8 @@ int amount_thread(void *arg)
 }
 
 /**
- * @brief Thread function that executes `pattern_thread` a specified number of times.
+ * @brief Thread function that executes `pattern_thread` a specified number of
+ * times.
  * @param arg A pointer to the file descriptor of the uinput device.
  * @return 0 on success, 1 on failure (e.g., no pattern available).
  */
@@ -316,7 +323,8 @@ int pattern_thread_amount(void *arg)
 /**
  * @brief Thread function that replays a recorded mouse pattern once.
  * @details Iterates through the `job.task.pattern` linked list, executing each
- * movement and click event until the pattern is complete or `worker_run` becomes false.
+ * movement and click event until the pattern is complete or `worker_run`
+ * becomes false.
  * @param arg A pointer to the file descriptor of the uinput device.
  * @return Always returns 0.
  */
