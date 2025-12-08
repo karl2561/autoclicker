@@ -1,5 +1,4 @@
 #include "keypress.h"
-#include "worker.h"
 
 #include <ctype.h>
 #include <errno.h>

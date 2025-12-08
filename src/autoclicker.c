@@ -46,7 +46,7 @@ int main()
 		else if (key_code == cfg.key_create_pattern)
 			record_pattern();
 		else if (key_code == cfg.key_play_pattern)
-			autoclick_pattern(1);
+			autoclick_pattern();
 	}
 
 	if (write_config()) {
@@ -55,7 +55,7 @@ int main()
 		return 1;
 	}
 
-	atomic_store(&start, false);
+	atomic_store(&worker_run, false);
 
 	remove_keypress_setup(fd, flags);
 	slist_delete(&head, remove_line);

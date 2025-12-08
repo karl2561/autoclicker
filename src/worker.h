@@ -1,12 +1,12 @@
-#ifndef AUTOCLICK_H
-#define AUTOCLICK_H
+#ifndef WORKER_H
+#define WORKER_H
 
 #include "create_pattern.h"
 #include "utils/config.h"
 #include "utils/handle_file.h"
 #include "utils/print_line.h"
+#include "utils/sleep.h"
 #include "utils/slist.h"
-#include "utils/time.h"
 
 #include <threads.h>
 

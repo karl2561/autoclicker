@@ -6,8 +6,8 @@
 #include "utils/conversion.h"
 #include "utils/print_line.h"
 #include "utils/raw_mode.h"
+#include "utils/sleep.h"
 #include "utils/slist.h"
-#include "utils/time.h"
 #include "worker.h"
 
 /* Listens to inputs to determine if a menus needs to be opened */
