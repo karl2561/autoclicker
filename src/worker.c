@@ -1,3 +1,7 @@
+/**
+ * @file worker.c
+ * @brief Implements the worker thread and task management for the autoclicker.
+ */
 #include "worker.h"
 
 #include <fcntl.h>
@@ -12,11 +16,19 @@
 #include <time.h>
 #include <unistd.h>
 
+/** @brief Atomic flag to control the main loop of the autoclicker threads. */
 atomic_bool worker_run = false;
+/** @brief The worker thread identifier. */
 thrd_t worker_thread;
 
+/** @brief The job definition for the worker thread, including task and sync primitives. */
 static worker_job_t job; // always auto zero-initialized!
 
+/**
+ * @brief Sets the mode and argument for the next autoclicker task.
+ * @param new_mode The `autoclick_modes` to set.
+ * @param i An unsigned integer argument for the mode (e.g., time in ms or click count).
+ */
 void ac_set(autoclick_modes new_mode, unsigned i)
 {
 	mtx_lock(&job.mutex);
@@ -25,6 +37,9 @@ void ac_set(autoclick_modes new_mode, unsigned i)
 	mtx_unlock(&job.mutex);
 }
 
+/**
+ * @brief Resets the autoclicker task to its default state (AUTOCLICK_NORMAL).
+ */
 void ac_clear()
 {
 	mtx_lock(&job.mutex);
@@ -32,6 +47,11 @@ void ac_clear()
 	mtx_unlock(&job.mutex);
 }
 
+/**
+ * @brief Sets the mouse pattern for the worker, taking ownership of the provided list.
+ * @details If a previous pattern exists, it is freed.
+ * @param new_pattern A pointer to the head of an `slist` containing the new pattern.
+ */
 void ac_set_pattern(struct slist *new_pattern)
 {
 	mtx_lock(&job.mutex);
@@ -41,6 +61,15 @@ void ac_set_pattern(struct slist *new_pattern)
 	mtx_unlock(&job.mutex);
 }
 
+/**
+ * @brief The main function for the worker thread.
+ *
+ * This thread waits on a condition variable (`job.cond`) until a task is
+ * available. When signaled, it executes the task based on the `job.task.mode`.
+ *
+ * @param arg An unused argument.
+ * @return 0 on successful completion, 1 on error.
+ */
 int autoclicker_worker(void *arg)
 {
 	(void)arg;
@@ -90,6 +119,9 @@ int autoclicker_worker(void *arg)
 	return 0;
 }
 
+/**
+ * @brief Initializes and starts the worker thread.
+ */
 void start_worker()
 {
 	job.task.mode = AUTOCLICK_NORMAL;
@@ -102,6 +134,9 @@ void start_worker()
 	thrd_create(&worker_thread, autoclicker_worker, NULL);
 }
 
+/**
+ * @brief Signals the worker thread to stop and waits for it to terminate.
+ */
 void stop_worker()
 {
 	atomic_store(&worker_run, false);
@@ -115,6 +150,12 @@ void stop_worker()
 	cnd_destroy(&job.cond);
 }
 
+/**
+ * @brief Submits a task to the worker thread and signals it to start.
+ * @details This function toggles the `worker_run` state. If the worker is now
+ * supposed to run, it marks a job as available and signals the worker thread.
+ * @return `true` if the autoclicker is now running, `false` if it was stopped.
+ */
 bool submit_task()
 {
 	atomic_store(&worker_run, !worker_run);
@@ -127,6 +168,11 @@ bool submit_task()
 	return true;
 }
 
+/**
+ * @brief Writes a click event to a uinput file descriptor.
+ * @param fd The file descriptor of the uinput device.
+ * @param keycode The key code to press and release (e.g., `BTN_LEFT`).
+ */
 void write_click_event(int fd, int keycode)
 {
 	struct input_event click[4] = {
@@ -139,6 +185,12 @@ void write_click_event(int fd, int keycode)
 	write(fd, &click, sizeof(click));
 }
 
+/**
+ * @brief Writes a mouse movement event to a uinput file descriptor.
+ * @param fd The file descriptor of the uinput device.
+ * @param x The absolute x-coordinate.
+ * @param y The absolute y-coordinate.
+ */
 void write_move_event(int fd, int x, int y)
 {
 	struct input_event move[3] = {
@@ -149,6 +201,13 @@ void write_move_event(int fd, int x, int y)
 	write(fd, &move, sizeof(move));
 }
 
+/**
+ * @brief The thread function for continuous autoclicking.
+ * @details This thread runs in a loop, emitting click events at the interval
+ * specified by `cfg.interval_ms`, until `worker_run` becomes false.
+ * @param arg A pointer to the file descriptor of the uinput device.
+ * @return Always returns 0.
+ */
 int autoclick_thread(void *arg)
 {
 	int fd = *(int *)arg;
@@ -163,6 +222,14 @@ int autoclick_thread(void *arg)
 	return 0;
 }
 
+/**
+ * @brief A thread that acts as a timer, stopping the autoclicker after a set duration.
+ * @details It calculates the end time and runs a loop, updating a "time remaining"
+ * display. The loop continues until the time expires or `worker_run` becomes false.
+ * It then sets `worker_run` to false to stop the accompanying `autoclick_thread`.
+ * @param arg An unused argument.
+ * @return Always returns 0.
+ */
 int timer_thread(void *arg)
 {
 	(void)arg;
@@ -199,6 +266,13 @@ int timer_thread(void *arg)
 	return 0;
 }
 
+/**
+ * @brief The thread function for clicking a specific number of times.
+ * @details Clicks for the amount specified in `job.task.i`, with the configured
+ * interval, or until `worker_run` becomes false.
+ * @param arg A pointer to the file descriptor of the uinput device.
+ * @return Always returns 0.
+ */
 int amount_thread(void *arg)
 {
 	int fd = *(int *)arg;
@@ -217,6 +291,11 @@ int amount_thread(void *arg)
 	return 0;
 }
 
+/**
+ * @brief Thread function that executes `pattern_thread` a specified number of times.
+ * @param arg A pointer to the file descriptor of the uinput device.
+ * @return 0 on success, 1 on failure (e.g., no pattern available).
+ */
 int pattern_thread_amount(void *arg)
 {
 	mtx_lock(&job.mutex);
@@ -234,6 +313,13 @@ int pattern_thread_amount(void *arg)
 	return 0;
 }
 
+/**
+ * @brief Thread function that replays a recorded mouse pattern once.
+ * @details Iterates through the `job.task.pattern` linked list, executing each
+ * movement and click event until the pattern is complete or `worker_run` becomes false.
+ * @param arg A pointer to the file descriptor of the uinput device.
+ * @return Always returns 0.
+ */
 int pattern_thread(void *arg)
 {
 	int fd = *(int *)arg;

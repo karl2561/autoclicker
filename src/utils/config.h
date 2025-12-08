@@ -1,3 +1,10 @@
+/**
+ * @file config.h
+ * @brief Manages configuration settings for the autoclicker.
+ *
+ * This file defines the structures and macros for managing application
+ * settings, including keybindings, click intervals, and other parameters.
+ */
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -20,6 +27,12 @@
 #define CFG_INTS X(interval_ms, 100, "interval between clicks (in ms)")
 #define CFG_BTNS X(key_pressed, BTN_LEFT, "key used for clicking")
 
+/**
+ * @struct config
+ * @brief Holds all configuration settings for the autoclicker.
+ *
+ * Uses X-macros to define its members from `CFG_KEYS`, `CFG_BTNS`, and `CFG_INTS`.
+ */
 struct config {
 #define X(name, value, desc) int name;
 	CFG_KEYS
@@ -31,27 +44,62 @@ struct config {
 #undef X
 };
 
+/** @brief Global instance of the configuration struct. */
 extern struct config cfg;
 
 #define X(name, val, desc) name,
+/**
+ * @enum cfg_enum
+ * @brief Enumeration of all configuration items for indexing.
+ *
+ * Generated using X-macros.
+ */
 enum cfg_enum { CFG_KEYS CFG_INTS CFG_BTNS CFG_COUNT };
 #undef X
 
-typedef enum { CFG_KEY, CFG_BTN, CFG_INT_A } cfg_type_t;
+/**
+ * @enum cfg_type_t
+ * @brief Defines the type of a configuration field.
+ */
+typedef enum {
+	CFG_KEY,   /**< A keyboard key binding. */
+	CFG_BTN,   /**< A mouse button binding. */
+	CFG_INT_A, /**< An atomic integer value. */
+} cfg_type_t;
 
+/**
+ * @struct cfg_map_t
+ * @brief Maps a configuration setting to its properties.
+ *
+ * This struct is used to create a map of all configuration settings,
+ * allowing them to be accessed generically.
+ */
 struct cfg_map_t {
-	const char *name;
-	const char *description;
-	void *field;
-	cfg_type_t type;
+	const char *name;       /**< The programmatic name of the setting. */
+	const char *description;/**< A human-readable description. */
+	void *field;            /**< A pointer to the field in the `cfg` struct. */
+	cfg_type_t type;        /**< The type of the configuration field. */
 };
 
+/** @brief An array that maps all configuration settings. */
 extern struct cfg_map_t cfg_map[];
+/** @brief The number of elements in `cfg_map`. */
 extern size_t cfg_map_length;
 
+/**
+ * @brief Converts a configuration field to an integer value.
+ *
+ * Handles different field types, including atomic integers.
+ * @param position The index of the configuration field in `cfg_map`.
+ * @return The integer value of the configuration field.
+ */
 extern int convert_field_to_int(int position);
 
-/* Returns a string for the config value, caller must free it */
+/**
+ * @brief Gets a user-friendly name for a configuration setting.
+ * @param i The index of the configuration field in `cfg_map`.
+ * @return A dynamically allocated string with the name. The caller must free it.
+ */
 extern char *get_name(int i);
 
 #endif

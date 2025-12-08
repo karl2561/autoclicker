@@ -1,3 +1,10 @@
+/**
+ * @file constants.h
+ * @brief Defines compile-time constants used throughout the application.
+ *
+ * This file contains paths to system devices, configuration files, and other
+ * fixed values.
+ */
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 

@@ -1,3 +1,7 @@
+/**
+ * @file handle_file.c
+ * @brief Implements functions for file I/O, device setup, and configuration management.
+ */
 #include "handle_file.h"
 
 #include <fcntl.h>
@@ -7,6 +11,11 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+/**
+ * @brief Creates and configures a virtual input device using uinput.
+ * @param keycode The keycode that the virtual device will be able to emit (e.g., for mouse clicks).
+ * @return The file descriptor for the new uinput device, or a negative value on error.
+ */
 int create_autokey_setup(int keycode)
 {
 	int fd = open(PATH_UINPUT, O_WRONLY | O_NONBLOCK);
@@ -52,12 +61,21 @@ int create_autokey_setup(int keycode)
 	return fd;
 }
 
+/**
+ * @brief Destroys a virtual uinput device and closes its file descriptor.
+ * @param fd The file descriptor of the uinput device to destroy.
+ */
 void remove_autokey_setup(int fd)
 {
 	ioctl(fd, UI_DEV_DESTROY);
 	close(fd);
 }
 
+/**
+ * @brief Opens the keyboard event device and sets it to non-blocking raw mode.
+ * @param flags A pointer to an integer where the original file status flags will be stored.
+ * @return The file descriptor for the keyboard event device, or a negative value on error.
+ */
 int create_keypress_setup(int *flags)
 {
 	int fd = open(PATH_KEYEV, O_RDONLY);
@@ -72,12 +90,22 @@ int create_keypress_setup(int *flags)
 	return fd;
 }
 
+/**
+ * @brief Restores the original file status flags and closes the keyboard event device.
+ * @param fd The file descriptor of the keyboard event device.
+ * @param flags The original file status flags to restore.
+ */
 void remove_keypress_setup(int fd, int flags)
 {
 	fcntl(fd, F_SETFL, flags);
 	close(fd);
 }
 
+/**
+ * @brief Inserts a configuration value from a line of text into the config struct.
+ * @param position The index in `cfg_map` corresponding to the config setting.
+ * @param line The line of text from the config file.
+ */
 static void insert_from_configs(int position, char *line)
 {
 	int length = strlen(cfg_map[position].name);
@@ -97,6 +125,10 @@ static void insert_from_configs(int position, char *line)
 		atomic_store((atomic_int *)cfg_map[position].field, tmp_value);
 }
 
+/**
+ * @brief Reads application settings from the configuration file.
+ * @return 0 on success, -1 if the config file cannot be opened.
+ */
 int read_config()
 {
 	FILE *fconf = fopen(PATH_CONFIG_SAVE, "r");
@@ -112,6 +144,10 @@ int read_config()
 	return 0;
 }
 
+/**
+ * @brief Writes the current application settings to the configuration file.
+ * @return 0 on success, -1 if the config file cannot be opened for writing.
+ */
 int write_config()
 {
 	FILE *fconf = fopen(PATH_CONFIG_SAVE, "w");

@@ -1,3 +1,9 @@
+/**
+ * @file autoclicker.h
+ * @brief Main header file for the autoclicker application.
+ *
+ * This file includes all necessary headers for the main application logic.
+ */
 #ifndef AUTOCLICKER_H
 #define AUTOCLICKER_H
 

@@ -1,10 +1,26 @@
+/**
+ * @file autoclicker.c
+ * @brief Main entry point and event loop for the autoclicker application.
+ */
 #include "autoclicker.h"
 
 #include <stdio.h>
 #include <threads.h>
 
+/** @brief Global head of the linked list for managing printed lines on the screen. */
 struct slist *head = nullptr;
 
+/**
+ * @brief Main entry point for the autoclicker application.
+ *
+ * Initializes the application, reads the configuration file, sets up keypress
+ * event handling, and enters the main event loop. The loop listens for user
+ * input and dispatches actions based on the configured keybindings.
+ * Before exiting, it saves the configuration and cleans up resources.
+ *
+ * @return Returns 0 on successful execution, and 1 on error (e.g., if the
+ *         keypress setup fails or the config cannot be written).
+ */
 int main()
 {
 	struct printed_line *line;

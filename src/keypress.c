@@ -1,3 +1,7 @@
+/**
+ * @file keypress.c
+ * @brief Implements functions for handling user input and menu interactions.
+ */
 #include "keypress.h"
 
 #include <ctype.h>
@@ -8,8 +12,19 @@
 #include <threads.h>
 #include <unistd.h>
 
+/** @brief List head for lines printed by `autoclick_toggle` to be cleared later. */
 struct slist *start_line = nullptr;
 
+/**
+ * @brief Reads and returns a single key press event from an input device.
+ *
+ * This function reads from the given file descriptor, which is expected to be
+ * an input event device. It blocks until a key-press event (EV_KEY with value 1)
+ * is received, ignoring repeated key-down events for the currently pressed key.
+ *
+ * @param fd The file descriptor of the input event device.
+ * @return The `ev.code` of the pressed key, or -1 if a read error occurs.
+ */
 int get_input(int fd)
 {
 	struct input_event ev, ev2;
@@ -31,6 +46,13 @@ int get_input(int fd)
 	return -1;
 }
 
+/**
+ * @brief Displays the current configuration settings in a menu.
+ *
+ * Iterates through the global `cfg_map`, creating and printing lines for each
+ * configuration item. It then waits for the user to press the menu key to close
+ * the display.
+ */
 void print_config()
 {
 	struct slist *head = nullptr;
@@ -57,6 +79,14 @@ void print_config()
 	close_menu(&head, cfg.key_menu);
 }
 
+/**
+ * @brief Provides a menu for the user to change keybindings.
+ *
+ * Stops the autoclicker worker and displays a menu of available keybindings
+ * that can be changed. The user can select a binding to modify and is then
+ * prompted to press a new key. The function checks for conflicts with existing
+ * keybindings before applying the change.
+ */
 void change_keybindings()
 {
 	atomic_store(&worker_run, false);
@@ -140,6 +170,12 @@ select_key:
 	*(int *)cfg_map[value].field = c;
 }
 
+/**
+ * @brief Provides a menu for the user to change the autoclick interval.
+ *
+ * Stops the autoclicker worker and prompts the user to enter a new interval
+ * in milliseconds.
+ */
 void change_autoclick_interval()
 {
 	atomic_store(&worker_run, false);
@@ -167,6 +203,12 @@ start:
 	cfg.interval_ms = result;
 }
 
+/**
+ * @brief Toggles the autoclicker worker thread on or off.
+ *
+ * If the autoclicker is started, it prints a confirmation message. The `start_line`
+ * global is used to keep track of this message so it can be cleared later.
+ */
 void autoclick_toggle()
 {
 	if (start_line != nullptr)
@@ -179,6 +221,12 @@ void autoclick_toggle()
 	}
 }
 
+/**
+ * @brief Provides a menu for setting a timed duration for the autoclicker.
+ *
+ * Prompts the user to enter a duration in seconds. On confirmation, it sets
+ * the autoclicker task to `AUTOCLICK_TIMER` mode with the specified duration.
+ */
 void autoclick_timer()
 {
 start:
@@ -205,6 +253,12 @@ start:
 	ac_set(AUTOCLICK_TIMER, duration * 1000);
 }
 
+/**
+ * @brief Provides a menu for setting a specific number of clicks.
+ *
+ * Prompts the user to enter a number of clicks. On confirmation, it sets
+ * the autoclicker task to `AUTOCLICK_AMOUNT` mode with the specified amount.
+ */
 void autoclick_amount()
 {
 start:
@@ -230,6 +284,13 @@ start:
 	ac_set(AUTOCLICK_AMOUNT, amount);
 }
 
+/**
+ * @brief Initiates the process of recording a new mouse pattern.
+ *
+ * Displays instructions for the user to create a pattern by moving the mouse
+ * and left-clicking. The recording stops on a right-click. The created pattern
+ * is then written to a file and set as the active pattern for the worker.
+ */
 void record_pattern()
 {
 	struct slist *head = nullptr;
@@ -250,6 +311,13 @@ void record_pattern()
 	slist_delete(&head, remove_line);
 }
 
+/**
+ * @brief Provides a menu for playing the recorded pattern a number of times.
+ *
+ * Prompts the user to enter how many times the pattern should be repeated.
+ * On confirmation, it sets the autoclicker task to `AUTOCLICK_PATTERN` mode
+ * with the specified number of repetitions.
+ */
 void autoclick_pattern()
 {
 start:

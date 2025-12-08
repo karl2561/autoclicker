@@ -1,3 +1,7 @@
+/**
+ * @file keypress.h
+ * @brief Defines functions for handling user input and menu interactions.
+ */
 #ifndef MENUFUNCTIONS_H
 #define MENUFUNCTIONS_H
 
@@ -10,32 +14,59 @@
 #include "utils/slist.h"
 #include "worker.h"
 
-/* Listens to inputs to determine if a menus needs to be opened */
+/**
+ * @brief Listens for keyboard input and processes recognized key commands.
+ * @param fd The file descriptor for the input event device.
+ * @return The key code of the pressed key, or -1 on read failure.
+ */
 int get_input(int fd);
 
-/* Prints the keybindings to terminal, deletes them on closure */
+/**
+ * @brief Prints the current keybindings and configuration to the terminal.
+ * @details The menu stays open until the user presses the menu key or quit key.
+ */
 void print_config();
 
-/* Change keybindings for the autoclicker */
+/**
+ * @brief Allows the user to change the keybindings for various actions.
+ * @details Enters a menu where the user can select an action and press a new key to assign to it.
+ */
 void change_keybindings();
 
-/* Sets an interval, how long the autoclicker should run */
+/**
+ * @brief Allows the user to set the autoclicker click interval.
+ * @details Enters a menu prompting the user to enter a new click interval in milliseconds.
+ */
 void change_autoclick_interval();
 
-/* Toogles the autoclicker. On start creates the autokey threat and detaches it
+/**
+ * @brief Toggles the autoclicker on or off.
+ * @details If not running, it submits a task to the worker thread to start clicking. If running, it stops the worker.
  */
 void autoclick_toggle();
 
-/* Creates a timer for timer_thread */
+/**
+ * @brief Sets a timer for the autoclicker.
+ * @details Prompts the user for a duration in seconds, then sets the autoclicker to run for that amount of time.
+ */
 void autoclick_timer();
 
-/* Uses the amount to determine how long timer_thread needs to run */
+/**
+ * @brief Sets the autoclicker to run for a specific number of clicks.
+ * @details Prompts the user for a number of clicks, then sets the autoclicker to perform that many clicks.
+ */
 void autoclick_amount();
 
-/* Create a new pattern to replay later */
+/**
+ * @brief Initiates the recording of a new mouse pattern.
+ * @details Guides the user to create a pattern and saves it.
+ */
 void record_pattern();
 
-/* Playes a saved pattern, as often as specified */
+/**
+ * @brief Plays a saved mouse pattern a specified number of times.
+ * @details Prompts the user for the number of repetitions.
+ */
 void autoclick_pattern();
 
 #endif

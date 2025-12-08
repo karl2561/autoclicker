@@ -1,3 +1,10 @@
+/**
+ * @file worker.h
+ * @brief Defines the worker thread and task management for the autoclicker.
+ *
+ * This file contains the structures, enums, and functions for managing the
+ * background worker thread that performs the autoclicking actions.
+ */
 #ifndef WORKER_H
 #define WORKER_H
 
@@ -10,86 +17,126 @@
 
 #include <threads.h>
 
+/** @brief Atomic flag to control the main loop of the autoclicker threads. */
 extern atomic_bool worker_run;
 
+/**
+ * @enum autoclick_modes
+ * @brief Defines the different operating modes for the autoclicker worker.
+ */
 typedef enum {
-	AUTOCLICK_NORMAL,
-	AUTOCLICK_TIMER,
-	AUTOCLICK_AMOUNT,
-	AUTOCLICK_PATTERN,
+	AUTOCLICK_NORMAL,   /**< Continuous clicking. */
+	AUTOCLICK_TIMER,    /**< Click for a specified duration. */
+	AUTOCLICK_AMOUNT,   /**< Click a specified number of times. */
+	AUTOCLICK_PATTERN,  /**< Replay a recorded mouse pattern. */
 } autoclick_modes;
 
-/*
- * Could add a struct slist *pattern;
- * Then I would not need to declare it but could always set it with ac_set
- * ac_clear would then be responsible to free the memory and set it to a nullptr
- * This is fine, however also cumbersome. Best would be if it wasn't freed.
- * Inside ac_set if it isn't a nullptr it would free the previous linked list
- * then read the new pattern. Thus minimizing the calls.
+/**
+ * @struct autoclicker_task_t
+ * @brief Represents a task for the autoclicker worker.
  */
 typedef struct {
-	struct slist *pattern;
-	unsigned i;
-	autoclick_modes mode;
+	struct slist *pattern; /**< A linked list representing a mouse pattern. */
+	unsigned i;            /**< A parameter for the task (e.g., duration or amount). */
+	autoclick_modes mode;  /**< The operating mode for the task. */
 } autoclicker_task_t;
 
+/**
+ * @struct worker_job_t
+ * @brief Manages the state and synchronization for the worker thread.
+ */
 typedef struct {
-	autoclicker_task_t task;
-	mtx_t mutex;
-	cnd_t cond;
-	atomic_bool available;
-	atomic_bool running;
+	autoclicker_task_t task; /**< The task to be executed. */
+	mtx_t mutex;             /**< Mutex for thread-safe access to the job data. */
+	cnd_t cond;              /**< Condition variable to signal task availability. */
+	atomic_bool available;   /**< Flag indicating if a new task is available. */
+	atomic_bool running;     /**< Flag to control the worker's main loop. */
 } worker_job_t;
 
 /**
- * @brief Switches the mode of the autoclicker and set the arg
- * @param autoclick_mode to which the task will be set to
- * @param unsigned which will determine the amount or time
+ * @brief Sets the mode and argument for the next autoclicker task.
+ * @param new_mode The `autoclick_modes` to set.
+ * @param i An unsigned integer argument for the mode (e.g., time in ms or click count).
  */
 void ac_set(autoclick_modes new_mode, unsigned i);
 
 /**
- * @brief Clears the mode of the autoclicker
+ * @brief Resets the autoclicker task to its default state (AUTOCLICK_NORMAL).
  */
 void ac_clear();
 
 /**
- * @brief Frees old pattern if exits, takes ownership from new_pattern
- * @param Takes in a slist with the new_pattern
- * @return void
+ * @brief Sets the mouse pattern for the worker, taking ownership of the provided list.
+ * @details If a previous pattern exists, it is freed.
+ * @param new_pattern A pointer to the head of an `slist` containing the new pattern.
  */
 void ac_set_pattern(struct slist *new_pattern);
 
-/* Worker thread */
+/**
+ * @brief The main function for the worker thread.
+ * @param arg An unused argument.
+ * @return 0 on successful completion.
+ */
 int autoclicker_worker(void *arg);
 
-/* Starts the worker thread */
+/**
+ * @brief Initializes and starts the worker thread.
+ */
 void start_worker();
 
-/* Ends the worker thread */
+/**
+ * @brief Signals the worker thread to stop and waits for it to terminate.
+ */
 void stop_worker();
 
-/* Creates a new task for the autoclicker, returns true if running */
+/**
+ * @brief Submits a task to the worker thread and signals it to start.
+ * @return `true` if the autoclicker is now running, `false` if it was stopped.
+ */
 bool submit_task();
 
-/* Thread that autoclicks when start is toggled */
+/**
+ * @brief The thread function for continuous autoclicking.
+ * @param arg A pointer to the file descriptor of the uinput device.
+ * @return Always returns 0.
+ */
 extern int autoclick_thread(void *arg);
 
-/* Creates a new thread, to click until the timer runs out */
+/**
+ * @brief The thread function for timed autoclicking. It stops the main `autoclick_thread` after a duration.
+ * @param arg An unused argument.
+ * @return Always returns 0.
+ */
 extern int timer_thread(void *arg);
 
-/* Creates a new thread, to click the received amount of times */
+/**
+ * @brief The thread function for clicking a specific number of times.
+ * @param arg A pointer to the file descriptor of the uinput device.
+ * @return Always returns 0.
+ */
 extern int amount_thread(void *arg);
 
+/**
+ * @struct pattern_arg_t
+ * @brief Arguments for pattern-based clicking threads. (Currently unused).
+ */
 typedef struct {
 	struct slist *pattern;
 	int fd;
 } pattern_arg_t;
 
-/* Thread that determines how often pattern thread will be run */
+/**
+ * @brief Thread function that executes `pattern_thread` a specified number of times.
+ * @param arg A pointer to the file descriptor of the uinput device.
+ * @return 0 on success, 1 on failure (e.g., no pattern available).
+ */
 int pattern_thread_amount(void *arg);
 
-/* Repeats a pattern once, then finishes */
+/**
+ * @brief Thread function that replays a recorded mouse pattern once.
+ * @param arg A pointer to the file descriptor of the uinput device.
+ * @return Always returns 0.
+ */
 extern int pattern_thread(void *arg);
 
 #endif

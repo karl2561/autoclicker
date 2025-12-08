@@ -1,11 +1,22 @@
+/**
+ * @file raw_mode.h
+ * @brief Manages terminal raw mode settings.
+ */
 #ifndef RAWMODE_H
 #define RAWMODE_H
 
-/* Enables raw mode, disables output to terminal, reading one char at a time.
- * Restores settings on quit */
+/**
+ * @brief Enables raw mode for the terminal.
+ * @details Disables canonical mode and character echoing. It also registers `enable_input`
+ * to be called on program exit to restore the terminal settings.
+ */
 extern void raw_mode_setup();
 
-/* Enables input back to it's original, used to restore settings atexit */
+/**
+ * @brief Restores the original terminal settings.
+ * @details This function is typically registered with `atexit` to ensure the
+ * terminal is returned to a usable state when the program terminates.
+ */
 void enable_input();
 
 #endif

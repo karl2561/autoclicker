@@ -1,3 +1,7 @@
+/**
+ * @file print_line.c
+ * @brief Implements functions for printing and managing lines in the terminal.
+ */
 #include "print_line.h"
 
 #include <ctype.h>
@@ -7,6 +11,12 @@
 #include <string.h>
 #include <unistd.h>
 
+/**
+ * @brief Counts how many times a character `c` appears in a string `s`.
+ * @param s The null-terminated string to search.
+ * @param c The character to count.
+ * @return The number of occurrences of `c`.
+ */
 int countChar(const char *s, const char c)
 {
 	int count = 0;
@@ -17,6 +27,11 @@ int countChar(const char *s, const char c)
 	return count;
 }
 
+/**
+ * @brief Frees a `printed_line` struct and erases its content from the console.
+ * @details Uses ANSI escape codes to move the cursor up and clear lines.
+ * @param data A void pointer to a `printed_line` struct.
+ */
 void remove_line(void *data)
 {
 	struct printed_line *line = (struct printed_line *)data;
@@ -36,6 +51,12 @@ void remove_line(void *data)
 	fflush(stdout);
 }
 
+/**
+ * @brief Prints a formatted string to the console and creates a `printed_line` struct to track it.
+ * @param fmt The format string, as in `printf`.
+ * @param ... Variable arguments for the format string.
+ * @return A pointer to the newly created `printed_line` struct. The caller should eventually free this.
+ */
 struct printed_line *create_line(const char *fmt, ...)
 {
 	va_list args;
@@ -69,6 +90,13 @@ struct printed_line *create_line(const char *fmt, ...)
 	return node;
 }
 
+/**
+ * @brief Displays a standard exit/confirm menu and waits for user input.
+ * @details Prints options to save, quit, or redo, then waits for the user to press Enter, ESC, or 'r'.
+ * Cleans up all printed lines associated with the menu upon exit.
+ * @param head_ptr A pointer to the head of an `slist` of `printed_line` structs to be cleaned up.
+ * @return The character code of the user's choice ('\n', ESC_KEY, 'r', or -1 on error).
+ */
 int exit_function(struct slist **head_ptr)
 {
 	if (!head_ptr)
@@ -100,11 +128,22 @@ int exit_function(struct slist **head_ptr)
 	return c;
 }
 
+/**
+ * @brief Checks if a character is a stop character for a menu.
+ * @param key_code A specific key code that also acts as a stop character.
+ * @param c The character input by the user.
+ * @return `true` if `c` is EOF, newline, ESC, or matches `key_code`, `false` otherwise.
+ */
 bool is_stop_char(int key_code, int c)
 {
 	return c == EOF || c == '\n' || c == ESC_KEY || c == key_code;
 }
 
+/**
+ * @brief Waits for the user to press a specific key or the exit key to close a menu.
+ * @param head_ptr A pointer to the head of the `slist` of lines to be removed upon closing.
+ * @param key_code The special key code that also closes the menu.
+ */
 void close_menu(struct slist **head_ptr, int key_code)
 {
 	if (!head_ptr)
@@ -117,6 +156,10 @@ void close_menu(struct slist **head_ptr, int key_code)
 	slist_delete(head_ptr, remove_line);
 }
 
+/**
+ * @brief Reads a single character from stdin in raw mode.
+ * @return The character code, or -1 on failure.
+ */
 int get_char_stdin()
 {
 	char buf[MAX_LINE_LENGTH];
@@ -129,6 +172,10 @@ int get_char_stdin()
 	return -1;
 }
 
+/**
+ * @brief Reads a keypress from stdin and converts it to a Linux input event code.
+ * @return The input event code, or -1 on failure.
+ */
 int get_keycode_stdin()
 {
 	char buf[MAX_LINE_LENGTH];
@@ -141,6 +188,13 @@ int get_keycode_stdin()
 	return -1;
 }
 
+/**
+ * @brief Prompts the user to enter a positive integer from stdin.
+ * @details Handles backspace and ignores non-digit characters. After entry,
+ * it shows a confirmation menu.
+ * @param prompt The prompt message to display to the user.
+ * @return The entered number, or -1 if the user cancels with ESC.
+ */
 int get_number(char *prompt)
 {
 	struct slist *head = nullptr;
