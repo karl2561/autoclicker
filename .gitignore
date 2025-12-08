@@ -3,3 +3,5 @@ todo.md
 .pattern
 launcher.sh
 a.out
+build/
+
