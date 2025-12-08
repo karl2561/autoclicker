@@ -1,4 +1,5 @@
 #include "keypress.h"
+#include "worker.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -59,7 +60,7 @@ void print_config()
 
 void change_keybindings()
 {
-	atomic_store(&start, false);
+	atomic_store(&worker_run, false);
 	struct slist *head = nullptr;
 	struct printed_line *line;
 	char *name;
@@ -142,7 +143,7 @@ select_key:
 
 void change_autoclick_interval()
 {
-	atomic_store(&start, false);
+	atomic_store(&worker_run, false);
 	struct slist *head = nullptr;
 start:
 	struct printed_line *line =
@@ -169,24 +170,14 @@ start:
 
 void autoclick_toggle()
 {
-	atomic_store(&start, !atomic_load(&start));
 	if (start_line != nullptr)
 		slist_delete(&start_line, remove_line);
 
-	if (!atomic_load(&start))
-		return;
-
-	thrd_t autoclick;
-	if (ac.mode == AUTOCLICK_AMOUNT)
-		thrd_create(&autoclick, amount_thread, NULL);
-	else
-		thrd_create(&autoclick, autoclick_thread, NULL);
-
-	thrd_detach(autoclick);
-
-	struct printed_line *line;
-	line = create_line("Autoclicker running.\n");
-	start_line = slist_push(start_line, line);
+	if (submit_task()) {
+		struct printed_line *line;
+		line = create_line("Autoclicker running.\n");
+		start_line = slist_push(start_line, line);
+	}
 }
 
 void autoclick_timer()
@@ -247,29 +238,41 @@ void record_pattern()
 	head = slist_push(head, line);
 	line = create_line("Press right mousebutton when you are done.\n");
 	head = slist_push(head, line);
-	struct slist *head_pattern = create_pattern();
+	struct slist *pattern = create_pattern();
 	line = create_line("Pattern created\n");
 	head = slist_push(head, line);
 
-	if (write_pattern(head_pattern) < 0) {
+	if (write_pattern(pattern) < 0) {
 		line = create_line("Failed to save pattern\n");
 		head = slist_push(head, line);
 	}
 
-	slist_delete(&head_pattern, remove_item);
+	ac_set_pattern(pattern);
 	slist_delete(&head, remove_line);
 }
 
-void autoclick_pattern(int amount)
+void autoclick_pattern()
 {
-	struct pattern_arg *arg = malloc(sizeof(struct pattern_arg));
-	arg->amount = amount;
-	arg->pattern = read_pattern();
-	if (!arg->pattern) {
-		printf("No pattern to read\n");
+start:
+	struct slist *head = nullptr;
+	struct printed_line *line;
+	int amount =
+		get_number("Enter how often you want to repeat your pattern: ");
+	if (amount < 0) {
+		slist_delete(&head, remove_line);
 		return;
 	}
-	thrd_t pattern_amount;
-	thrd_create(&pattern_amount, pattern_thread_amount, arg);
-	thrd_detach(pattern_amount);
+
+	line = create_line("Will repeat pattern  %d times\n", amount);
+	head = slist_push(head, line);
+
+	switch (exit_function(&head)) {
+	case 'r':
+		goto start;
+	case -1:
+		return;
+	case '\n':
+	}
+
+	ac_set(AUTOCLICK_PATTERN, amount);
 }

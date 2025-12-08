@@ -2,13 +2,13 @@
 #define MENUFUNCTIONS_H
 
 #include "create_pattern.h"
-#include "threads.h"
 #include "utils/config.h"
 #include "utils/conversion.h"
 #include "utils/print_line.h"
 #include "utils/raw_mode.h"
 #include "utils/slist.h"
 #include "utils/time.h"
+#include "worker.h"
 
 /* Listens to inputs to determine if a menus needs to be opened */
 int get_input(int fd);
@@ -36,6 +36,6 @@ void autoclick_amount();
 void record_pattern();
 
 /* Playes a saved pattern, as often as specified */
-void autoclick_pattern(int amount);
+void autoclick_pattern();
 
 #endif

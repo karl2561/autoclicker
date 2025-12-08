@@ -11,12 +11,6 @@ struct Movement {
 	int y;
 };
 
-struct pattern_arg {
-	struct slist *pattern;
-	int amount;
-	int fd;
-};
-
 /* Creates the Movement Data for the pattern */
 [[nodiscard]] struct Movement *create_input(int x, int y);
 

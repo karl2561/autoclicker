@@ -10,4 +10,7 @@
  * code */
 [[nodiscard]] int ascii_to_evcode(const char *buf, size_t len);
 
+/* Returns the ascii character of a keycode if it exists */
+int evcode_to_ascii(int code);
+
 #endif

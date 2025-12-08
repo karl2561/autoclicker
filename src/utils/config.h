@@ -6,8 +6,6 @@
 
 #include <stdatomic.h>
 
-extern atomic_bool start;
-
 #define CFG_KEYS                                                               \
 	X(key_quit, KEY_ESC, "exit the program or close a menu")               \
 	X(key_create_pattern, KEY_F1, "create a new pattern")                  \

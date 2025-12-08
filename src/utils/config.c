@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-atomic_bool start = false;
-
 struct config cfg = {
 #define X(name, val, desc) .name = val,
 	CFG_KEYS CFG_BTNS CFG_INTS
@@ -73,13 +71,11 @@ static void str_replace_char(char *s, char old, char new)
 
 char *get_name(int i)
 {
-	char *name;
+	char *name = nullptr;
 	if (cfg_map[i].type == CFG_KEY)
 		name = strip_prefix(cfg_map[i].name);
 	else if (cfg_map[i].type == CFG_INT_A)
 		name = strip_suffix(cfg_map[i].name);
-	else
-		return strdup("unkown");
 
 	if (!name)
 		return strdup("unkown");

@@ -4,8 +4,6 @@
 #include <threads.h>
 
 struct slist *head = nullptr;
-mtx_t mutex;
-cnd_t task_cond;
 
 int main()
 {
@@ -18,10 +16,11 @@ int main()
 
 	int flags = 0, fd = create_keypress_setup(&flags);
 	if (fd < 0) {
-		perror("File open!\n");
+		perror("Error creating setup");
 		return 1;
 	}
 
+	start_worker();
 	line = create_line(
 		"Press %s to show info, %s to exit the program or menu.\n",
 		kctc(cfg.key_show_config), kctc(cfg.key_quit));
@@ -48,7 +47,7 @@ int main()
 		else if (key_code == cfg.key_create_pattern)
 			record_pattern();
 		else if (key_code == cfg.key_play_pattern)
-			autoclick_pattern(1);
+			autoclick_pattern();
 	}
 
 	if (write_config()) {
@@ -57,7 +56,7 @@ int main()
 		return 1;
 	}
 
-	atomic_store(&start, false);
+	stop_worker();
 
 	remove_keypress_setup(fd, flags);
 	slist_delete(&head, remove_line);
