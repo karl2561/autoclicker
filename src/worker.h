@@ -41,13 +41,23 @@ typedef struct {
 	atomic_bool running;
 } worker_job_t;
 
-/* Switches the mode of the autoclicker and set the arg */
+/**
+ * @brief Switches the mode of the autoclicker and set the arg
+ * @param autoclick_mode to which the task will be set to
+ * @param unsigned which will determine the amount or time
+ */
 void ac_set(autoclick_modes new_mode, unsigned i);
 
-/* Clears the mode of the autoclicker */
+/**
+ * @brief Clears the mode of the autoclicker
+ */
 void ac_clear();
 
-/* Frees old pattern if exits, takes ownership from new_pattern */
+/**
+ * @brief Frees old pattern if exits, takes ownership from new_pattern
+ * @param Takes in a slist with the new_pattern
+ * @return void
+ */
 void ac_set_pattern(struct slist *new_pattern);
 
 /* Worker thread */
