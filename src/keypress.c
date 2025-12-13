@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 int exit_function(struct slist **head_ptr, int fd);
+void close_menu(struct slist **head_ptr, int fd);
 /** @brief List head for lines printed by `autoclick_toggle` to be
  * cleared later. */
 struct slist *start_line = nullptr;
@@ -197,7 +198,7 @@ start:
 	struct printed_line *line =
 		create_line("Current interval: %dms\n", cfg.interval_ms);
 	head = slist_push(head, line);
-	int result = get_number("Enter your new interval: ");
+	int result = get_number_stdin("Enter your new interval: ");
 	if (result < 0) {
 		slist_delete(&head, remove_line);
 		return;
@@ -246,7 +247,7 @@ void autoclick_timer()
 start:
 	struct slist *head = nullptr;
 	struct printed_line *line;
-	int duration = get_number(
+	int duration = get_number_stdin(
 		"Enter how many seconds the autoclicker will be active: ");
 	if (duration < 0) {
 		slist_delete(&head, remove_line);
@@ -278,7 +279,7 @@ void autoclick_amount()
 start:
 	struct slist *head = nullptr;
 	struct printed_line *line;
-	int amount = get_number("Enter how often you want to click: ");
+	int amount = get_number_stdin("Enter how often you want to click: ");
 	if (amount < 0) {
 		slist_delete(&head, remove_line);
 		return;
@@ -337,8 +338,8 @@ void autoclick_pattern()
 start:
 	struct slist *head = nullptr;
 	struct printed_line *line;
-	int amount =
-		get_number("Enter how often you want to repeat your pattern: ");
+	int amount = get_number_stdin(
+		"Enter how often you want to repeat your pattern: ");
 	if (amount < 0) {
 		slist_delete(&head, remove_line);
 		return;

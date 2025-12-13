@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <linux/input-event-codes.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,13 +42,13 @@ void remove_line(void *data)
 	if (!line)
 		return;
 
-	if (line->lines > 0) {
-		if (line->length > 0)
-			line->lines++;
-		for (int i = 0; i < line->lines; i++)
+	if (line->line_count > 0) {
+		if (line->trailing_char_count > 0)
+			line->line_count++;
+		for (size_t i = 0; i < line->line_count; i++)
 			printf("\033[F\033[2K");
 	} else {
-		for (int i = 0; i < line->length; i++)
+		for (size_t i = 0; i < line->trailing_char_count; i++)
 			printf("\b \b");
 	}
 	free(line->text);
@@ -55,28 +56,46 @@ void remove_line(void *data)
 }
 
 /**
- * @brief Prints a formatted string to the console and creates a `printed_line`
- * struct to track it.
- * @param fmt The format string, as in `printf`.
- * @param ... Variable arguments for the format string.
- * @return A pointer to the newly created `printed_line` struct. The caller
- * should eventually free this.
+ * @brief Checks if a string ends in a newline character '\n'
+ * @param const char *s string to be checked
+ * @return boolean: true if ends in '\n', false otherwise
  */
-struct printed_line *create_line(const char *fmt, ...)
+bool ends_in_newline(const char *s)
 {
-	va_list args;
-	va_start(args, fmt);
+	if (!s)
+		return false;
 
-	int len = vsnprintf(NULL, 0, fmt, args);
-	va_end(args);
+	size_t len = strlen(s);
+	return len > 0 && s[len - 1] == '\n';
+}
 
-	char *buf = malloc(len + 1);
+/**
+ * @brief Helper function for create_line and append_line
+ * @param fmt The format string, as in `printf`.
+ * @param args The arguments for fmt
+ * @return A pointer to the newly created `printed_line` struct. The caller
+ * needs to free printed_line.
+ */
+struct printed_line *create_line_va(const char *fmt, va_list args)
+{
+	va_list args_copy;
+	va_copy(args_copy, args);
+	size_t str_len = vsnprintf(NULL, 0, fmt, args_copy);
+	va_end(args_copy);
+
+	size_t cap = 1;
+
+	if (ends_in_newline(fmt))
+		cap = str_len + 1;
+	else
+		while (cap < str_len + 1)
+			cap <<= 1;
+
+	char *buf = malloc(cap);
 	if (!buf)
 		return nullptr;
 
-	va_start(args, fmt);
-	vsnprintf(buf, len + 1, fmt, args);
-	va_end(args);
+	vsnprintf(buf, str_len + 1, fmt, args);
 
 	struct printed_line *node = malloc(sizeof(struct printed_line));
 	if (!node) {
@@ -86,13 +105,83 @@ struct printed_line *create_line(const char *fmt, ...)
 
 	const char *last = strrchr(buf, '\n');
 	node->text = buf;
-	node->lines = countChar(buf, '\n');
-	node->length = last ? strlen(last + 1) : strlen(buf);
+	node->line_count = countChar(buf, '\n');
+	node->trailing_char_count = last ? strlen(last + 1) : str_len;
+	node->str_len = str_len + 1;
+	node->cap = cap;
 
 	printf("%s", buf);
 	fflush(stdout);
 
 	return node;
+}
+
+/**
+ * @brief Prints a formatted string to the console and creates a `printed_line`
+ * struct to track it.
+ * @param fmt The format string, as in `printf`.
+ * @param ... Variable arguments for the format string.
+ * @return A pointer to the newly created `printed_line` struct. The caller
+ * needs to free printed_line.
+ */
+struct printed_line *create_line(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	struct printed_line *node = create_line_va(fmt, args);
+	va_end(args);
+	return node;
+}
+
+/**
+ * @brief Checks if line ends in '\n', if so calls create_line instead,
+ * otherwise prints the formatted string to console and appends it to line.
+ * @param line The printe_line to append to
+ * @param fmt The format string, as in `printf`.
+ * @param ... Variable arguments for the format string.
+ * @return returns the pointer to line, or a newly created line. The caller
+ * needs to free printed_line.
+ */
+struct printed_line *append_line(
+	struct printed_line *line, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+
+	if (ends_in_newline(line->text)) {
+		struct printed_line *node = create_line_va(fmt, args);
+		va_end(args);
+		return node;
+	}
+
+	size_t str_len = vsnprintf(NULL, 0, fmt, args);
+	va_end(args);
+
+	char *buf = malloc(str_len + 1);
+	if (!buf)
+		return nullptr;
+
+	if (line->cap < line->str_len + str_len)
+		while (line->cap < line->str_len + str_len)
+			line->cap <<= 1;
+
+	va_start(args, fmt);
+	vsnprintf(buf, str_len + 1, fmt, args);
+	va_end(args);
+
+	const char *last = strrchr(buf, '\n');
+	size_t count_new_line = countChar(buf, '\n');
+	line->line_count += count_new_line;
+	size_t trailing_char_count = last ? strlen(last + 1) : str_len;
+	if (count_new_line > 0)
+		line->trailing_char_count = trailing_char_count;
+	else
+		line->trailing_char_count += trailing_char_count;
+
+	printf("%s", buf);
+	fflush(stdout);
+
+	return line;
 }
 
 /**
@@ -208,13 +297,13 @@ int get_keycode_stdin()
  * @param prompt The prompt message to display to the user.
  * @return The entered number, or -1 if the user cancels with ESC.
  */
-int get_number(char *prompt)
+int get_number_stdin(char *prompt)
 {
 	struct slist *head = nullptr;
 	struct printed_line *line;
 	int c = 1, pos = 0;
 start:
-	line = create_line(prompt);
+	line = create_line(prompt); // prompt doesn't end in '\n'
 	head = slist_push(head, line);
 	int result = 0;
 	while (1) {

@@ -12,6 +12,8 @@
 #include "conversion.h"
 #include "slist.h"
 
+#include <stddef.h>
+
 /**
  * @brief Counts how many times a character `c` appears in a string `s`.
  * @param s The null-terminated string to search.
@@ -28,9 +30,11 @@ int countChar(const char *s, const char c);
  */
 struct printed_line {
 	char *text; /**< The full text content that was printed. */
-	int length; /**< The number of characters in the last line (if it
-		       doesn't end with a newline). */
-	int lines;  /**< The number of newline characters in the text. */
+	size_t trailing_char_count; /**< The number of characters in the last
+		 line, 0 if text end in '\n'. */
+	size_t line_count; /**< The number of newline characters in the text. */
+	size_t str_len;	   /** Length of text */
+	size_t cap;	   /** Capcity, how much space for text is allocated */
 };
 
 /**
@@ -68,7 +72,7 @@ error).
  * upon closing.
  * @param key_code The special key code that also closes the menu.
  */
-void close_menu(struct slist **head_ptr, int key_code);
+void close_menu_stdin(struct slist **head_ptr, int key_code);
 
 /**
  * @brief Reads a single character from stdin in raw mode.
@@ -88,6 +92,6 @@ void close_menu(struct slist **head_ptr, int key_code);
  * @param line The prompt message to display to the user.
  * @return The entered number, or -1 if the user cancels with ESC.
  */
-int get_number(char *line);
+int get_number_stdin(char *line);
 
 #endif
