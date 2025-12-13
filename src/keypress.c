@@ -398,6 +398,6 @@ int exit_function(struct slist **head_ptr, int fd)
 		}
 	}
 
-	*head_ptr = slist_push(*head_ptr, line);
+	slist_delete(head_ptr, remove_line);
 	return c;
 }

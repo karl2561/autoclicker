@@ -132,8 +132,7 @@ int exit_function_stdin(struct slist **head_ptr)
 		}
 	}
 
-	*head_ptr = slist_push(*head_ptr, line);
-
+	slist_delete(head_ptr, remove_line);
 	return c;
 }
 
