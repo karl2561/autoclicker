@@ -29,33 +29,42 @@ void print_config();
 
 /**
  * @brief Allows the user to change the keybindings for various actions.
- * @details Enters a menu where the user can select an action and press a new key to assign to it.
+ * @param fd The file descriptor for the input event device.
+ * @details Enters a menu where the user can select an action and press a new
+ * key to assign to it.
  */
-void change_keybindings();
+void change_keybindings(int fd);
 
 /**
  * @brief Allows the user to set the autoclicker click interval.
- * @details Enters a menu prompting the user to enter a new click interval in milliseconds.
+ * @param fd The file descriptor for the input event device.
+ * @details Enters a menu prompting the user to enter a new click interval in
+ * milliseconds.
  */
-void change_autoclick_interval();
+void change_autoclick_interval(int fd);
 
 /**
  * @brief Toggles the autoclicker on or off.
- * @details If not running, it submits a task to the worker thread to start clicking. If running, it stops the worker.
+ * @details If not running, it submits a task to the worker thread to start
+ * clicking. If running, it stops the worker.
  */
 void autoclick_toggle();
 
 /**
  * @brief Sets a timer for the autoclicker.
- * @details Prompts the user for a duration in seconds, then sets the autoclicker to run for that amount of time.
+ * @param fd The file descriptor for the input event device.
+ * @details Prompts the user for a duration in seconds, then sets the
+ * autoclicker to run for that amount of time.
  */
-void autoclick_timer();
+void autoclick_timer(int fd);
 
 /**
  * @brief Sets the autoclicker to run for a specific number of clicks.
- * @details Prompts the user for a number of clicks, then sets the autoclicker to perform that many clicks.
+ * @param fd The file descriptor for the input event device.
+ * @details Prompts the user for a number of clicks, then sets the autoclicker
+ * to perform that many clicks.
  */
-void autoclick_amount();
+void autoclick_amount(int fd);
 
 /**
  * @brief Initiates the recording of a new mouse pattern.
@@ -65,8 +74,9 @@ void record_pattern();
 
 /**
  * @brief Plays a saved mouse pattern a specified number of times.
+ * @param fd The file descriptor for the input event device.
  * @details Prompts the user for the number of repetitions.
  */
-void autoclick_pattern();
+void autoclick_pattern(int fd);
 
 #endif

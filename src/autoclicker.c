@@ -55,17 +55,17 @@ int main()
 		else if (key_code == cfg.key_quit)
 			break;
 		else if (key_code == cfg.key_change_interval)
-			change_autoclick_interval();
+			change_autoclick_interval(fd);
 		else if (key_code == cfg.key_menu)
-			change_keybindings();
+			change_keybindings(fd);
 		else if (key_code == cfg.key_timer)
-			autoclick_timer();
+			autoclick_timer(fd);
 		else if (key_code == cfg.key_amount)
-			autoclick_amount();
+			autoclick_amount(fd);
 		else if (key_code == cfg.key_create_pattern)
 			record_pattern();
 		else if (key_code == cfg.key_play_pattern)
-			autoclick_pattern();
+			autoclick_pattern(fd);
 	}
 
 	if (write_config()) {

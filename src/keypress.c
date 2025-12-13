@@ -3,24 +3,30 @@
  * @brief Implements functions for handling user input and menu interactions.
  */
 #include "keypress.h"
+#include "utils/conversion.h"
+#include "utils/print_line.h"
+#include "utils/slist.h"
 
-#include <ctype.h>
 #include <errno.h>
+#include <linux/input-event-codes.h>
 #include <linux/input.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <threads.h>
 #include <unistd.h>
 
-/** @brief List head for lines printed by `autoclick_toggle` to be cleared later. */
+int exit_function(struct slist **head_ptr, int fd);
+/** @brief List head for lines printed by `autoclick_toggle` to be
+ * cleared later. */
 struct slist *start_line = nullptr;
 
 /**
  * @brief Reads and returns a single key press event from an input device.
  *
  * This function reads from the given file descriptor, which is expected to be
- * an input event device. It blocks until a key-press event (EV_KEY with value 1)
- * is received, ignoring repeated key-down events for the currently pressed key.
+ * an input event device. It blocks until a key-press event (EV_KEY with value
+ * 1) is received, ignoring repeated key-down events for the currently pressed
+ * key.
  *
  * @param fd The file descriptor of the input event device.
  * @return The `ev.code` of the pressed key, or -1 if a read error occurs.
@@ -87,7 +93,7 @@ void print_config()
  * prompted to press a new key. The function checks for conflicts with existing
  * keybindings before applying the change.
  */
-void change_keybindings()
+void change_keybindings(int fd)
 {
 	atomic_store(&worker_run, false);
 	struct slist *head = nullptr;
@@ -106,13 +112,18 @@ void change_keybindings()
 	head = slist_push(head, line);
 
 start:
-	int c = get_char_stdin();
+	int c = get_input(fd);
 	if (c == ESC_KEY) {
 		slist_delete(&head, remove_line);
 		return;
 	}
+	/* using stdin
 	int value = c - '0';
 	if (!isdigit(c) || !(j & (1 << value))) {
+	 * using get_input
+	 */
+	int value = (c - 1) % 10;
+	if (c < 2 || c > 11 || !(j & (1 << value))) {
 		line = create_line("Invalid selection, try again\n");
 		head = slist_push(head, line);
 		goto start;
@@ -124,7 +135,7 @@ select_key:
 	line = create_line("Selected to change %s\n", name);
 	head = slist_push(head, line);
 	if (cfg_map[value].type != CFG_KEY)
-		return change_autoclick_interval();
+		return change_autoclick_interval(fd);
 
 	key_value = convert_field_to_int(value);
 	line = create_line("Current activation key: %s\n", kctc(key_value));
@@ -133,11 +144,13 @@ select_key:
 		"Press the key you wish to be the new activation key\n");
 	head = slist_push(head, line);
 
+	/* using stdin
 	c = get_keycode_stdin();
 	if (c == -1) {
-		slist_delete(&head, remove_line);
-		return;
-	}
+	slist_delete(&head, remove_line);
+	return;
+	*/
+	c = get_input(fd);
 
 	for (int i = 0; i < (int)cfg_map_length; i++) {
 		if (cfg_map[i].type != CFG_KEY)
@@ -158,7 +171,7 @@ select_key:
 	line = create_line("New activation key will be: %s\n", kctc(c));
 	head = slist_push(head, line);
 
-	switch (exit_function(&head)) {
+	switch (exit_function(&head, fd)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -176,7 +189,7 @@ select_key:
  * Stops the autoclicker worker and prompts the user to enter a new interval
  * in milliseconds.
  */
-void change_autoclick_interval()
+void change_autoclick_interval(int fd)
 {
 	atomic_store(&worker_run, false);
 	struct slist *head = nullptr;
@@ -193,7 +206,7 @@ start:
 	line = create_line("New interval will be: %dms\n", result);
 	head = slist_push(head, line);
 
-	switch (exit_function(&head)) {
+	switch (exit_function(&head, fd)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -206,8 +219,9 @@ start:
 /**
  * @brief Toggles the autoclicker worker thread on or off.
  *
- * If the autoclicker is started, it prints a confirmation message. The `start_line`
- * global is used to keep track of this message so it can be cleared later.
+ * If the autoclicker is started, it prints a confirmation message. The
+ * `start_line` global is used to keep track of this message so it can be
+ * cleared later.
  */
 void autoclick_toggle()
 {
@@ -227,7 +241,7 @@ void autoclick_toggle()
  * Prompts the user to enter a duration in seconds. On confirmation, it sets
  * the autoclicker task to `AUTOCLICK_TIMER` mode with the specified duration.
  */
-void autoclick_timer()
+void autoclick_timer(int fd)
 {
 start:
 	struct slist *head = nullptr;
@@ -242,7 +256,7 @@ start:
 	line = create_line("Clicker will be active for %ds\n", duration);
 	head = slist_push(head, line);
 
-	switch (exit_function(&head)) {
+	switch (exit_function(&head, fd)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -259,7 +273,7 @@ start:
  * Prompts the user to enter a number of clicks. On confirmation, it sets
  * the autoclicker task to `AUTOCLICK_AMOUNT` mode with the specified amount.
  */
-void autoclick_amount()
+void autoclick_amount(int fd)
 {
 start:
 	struct slist *head = nullptr;
@@ -273,7 +287,7 @@ start:
 	line = create_line("Will click  %d times\n", amount);
 	head = slist_push(head, line);
 
-	switch (exit_function(&head)) {
+	switch (exit_function(&head, fd)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -318,7 +332,7 @@ void record_pattern()
  * On confirmation, it sets the autoclicker task to `AUTOCLICK_PATTERN` mode
  * with the specified number of repetitions.
  */
-void autoclick_pattern()
+void autoclick_pattern(int fd)
 {
 start:
 	struct slist *head = nullptr;
@@ -333,7 +347,7 @@ start:
 	line = create_line("Will repeat pattern  %d times\n", amount);
 	head = slist_push(head, line);
 
-	switch (exit_function(&head)) {
+	switch (exit_function(&head, fd)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -342,4 +356,48 @@ start:
 	}
 
 	ac_set(AUTOCLICK_PATTERN, amount);
+}
+
+/**
+ * @brief Displays a standard exit/confirm menu and waits for user input.
+ * @details Prints options to save, quit, or redo, then waits for the user to
+ * press Enter, ESC, or 'r'. Cleans up all printed lines associated with the
+ * menu upon exit.
+ * @param head_ptr A pointer to the head of an `slist` of `printed_line` structs
+ * to be cleaned up.
+ * @return The character code of the user's choice ('\n', ESC_KEY, 'r', or -1 on
+ * error).
+ */
+int exit_function(struct slist **head_ptr, int fd)
+{
+	if (!head_ptr)
+		return -1;
+
+	struct printed_line *line;
+
+	line = create_line("Press Enter to save.\n");
+	*head_ptr = slist_push(*head_ptr, line);
+
+	line = create_line("Press ESC to undo & quit the menu\n");
+	*head_ptr = slist_push(*head_ptr, line);
+
+	line = create_line("Press r to redo your entry\n");
+	*head_ptr = slist_push(*head_ptr, line);
+
+	int c;
+	while ((c = get_input(fd))) {
+		if (c == KEY_R) {
+			c = 'r';
+			break;
+		} else if (c == KEY_ENTER) {
+			c = '\n';
+			break;
+		} else if (c == KEY_ESC) {
+			c = -1;
+			break;
+		}
+	}
+
+	*head_ptr = slist_push(*head_ptr, line);
+	return c;
 }

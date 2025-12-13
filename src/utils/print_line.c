@@ -3,6 +3,7 @@
  * @brief Implements functions for printing and managing lines in the terminal.
  */
 #include "print_line.h"
+#include "slist.h"
 
 #include <ctype.h>
 #include <linux/input-event-codes.h>
@@ -104,7 +105,7 @@ struct printed_line *create_line(const char *fmt, ...)
  * @return The character code of the user's choice ('\n', ESC_KEY, 'r', or -1 on
  * error).
  */
-int exit_function(struct slist **head_ptr)
+int exit_function_stdin(struct slist **head_ptr)
 {
 	if (!head_ptr)
 		return -1;
@@ -131,7 +132,8 @@ int exit_function(struct slist **head_ptr)
 		}
 	}
 
-	slist_delete(head_ptr, remove_line);
+	*head_ptr = slist_push(*head_ptr, line);
+
 	return c;
 }
 
@@ -245,7 +247,7 @@ start:
 		goto start;
 	}
 
-	switch (exit_function(&head)) {
+	switch (exit_function_stdin(&head)) {
 	case 'r':
 		goto start;
 	case -1:
