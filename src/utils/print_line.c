@@ -5,6 +5,7 @@
 #include "print_line.h"
 
 #include <ctype.h>
+#include <linux/input-event-codes.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,7 +144,7 @@ int exit_function(struct slist **head_ptr)
  */
 bool is_stop_char(int key_code, int c)
 {
-	return c == EOF || c == '\n' || c == ESC_KEY || c == key_code;
+	return c == EOF || c == KEY_ENTER || c == ESC_KEY || c == key_code;
 }
 
 /**
