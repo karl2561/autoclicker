@@ -143,7 +143,7 @@ int exit_function_stdin(struct slist **head_ptr)
  * @return `true` if `c` is EOF, newline, ESC, or matches `key_code`, `false`
  * otherwise.
  */
-bool is_stop_char(int key_code, int c)
+bool is_stop_char_stdin(int key_code, int c)
 {
 	return c == EOF || c == KEY_ENTER || c == ESC_KEY || c == key_code;
 }
@@ -155,13 +155,14 @@ bool is_stop_char(int key_code, int c)
  * upon closing.
  * @param key_code The special key code that also closes the menu.
  */
-void close_menu(struct slist **head_ptr, int key_code)
+void close_menu_stdin(struct slist **head_ptr, int key_code)
 {
 	if (!head_ptr)
 		return;
 
 	int c;
-	while ((c = get_char_stdin()) != EOF && !is_stop_char(key_code, c))
+	while ((c = get_char_stdin()) != EOF &&
+		!is_stop_char_stdin(key_code, c))
 		;
 
 	slist_delete(head_ptr, remove_line);

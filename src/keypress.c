@@ -59,7 +59,7 @@ int get_input(int fd)
  * configuration item. It then waits for the user to press the menu key to close
  * the display.
  */
-void print_config()
+void print_config(int fd)
 {
 	struct slist *head = nullptr;
 	struct printed_line *line;
@@ -82,7 +82,7 @@ void print_config()
 		head = slist_push(head, line);
 	}
 
-	close_menu(&head, cfg.key_menu);
+	close_menu(&head, fd);
 }
 
 /**
@@ -100,6 +100,9 @@ void change_keybindings(int fd)
 	struct printed_line *line;
 	char *name;
 	int j = 0;
+start:
+	line = create_line("Select which key you want to change\n");
+	head = slist_push(head, line);
 	for (int i = 0; i < (int)cfg_map_length; i++) {
 		if (cfg_map[i].type != CFG_KEY)
 			continue;
@@ -111,9 +114,8 @@ void change_keybindings(int fd)
 	line = create_line("Press ESC to exit this menu\n");
 	head = slist_push(head, line);
 
-start:
 	int c = get_input(fd);
-	if (c == ESC_KEY) {
+	if (c == KEY_ESC) {
 		slist_delete(&head, remove_line);
 		return;
 	}
@@ -134,8 +136,6 @@ select_key:
 	name = get_name(value);
 	line = create_line("Selected to change %s\n", name);
 	head = slist_push(head, line);
-	if (cfg_map[value].type != CFG_KEY)
-		return change_autoclick_interval(fd);
 
 	key_value = convert_field_to_int(value);
 	line = create_line("Current activation key: %s\n", kctc(key_value));
@@ -189,7 +189,7 @@ select_key:
  * Stops the autoclicker worker and prompts the user to enter a new interval
  * in milliseconds.
  */
-void change_autoclick_interval(int fd)
+void change_autoclick_interval()
 {
 	atomic_store(&worker_run, false);
 	struct slist *head = nullptr;
@@ -206,7 +206,7 @@ start:
 	line = create_line("New interval will be: %dms\n", result);
 	head = slist_push(head, line);
 
-	switch (exit_function(&head, fd)) {
+	switch (exit_function_stdin(&head)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -241,7 +241,7 @@ void autoclick_toggle()
  * Prompts the user to enter a duration in seconds. On confirmation, it sets
  * the autoclicker task to `AUTOCLICK_TIMER` mode with the specified duration.
  */
-void autoclick_timer(int fd)
+void autoclick_timer()
 {
 start:
 	struct slist *head = nullptr;
@@ -256,7 +256,7 @@ start:
 	line = create_line("Clicker will be active for %ds\n", duration);
 	head = slist_push(head, line);
 
-	switch (exit_function(&head, fd)) {
+	switch (exit_function_stdin(&head)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -273,7 +273,7 @@ start:
  * Prompts the user to enter a number of clicks. On confirmation, it sets
  * the autoclicker task to `AUTOCLICK_AMOUNT` mode with the specified amount.
  */
-void autoclick_amount(int fd)
+void autoclick_amount()
 {
 start:
 	struct slist *head = nullptr;
@@ -287,7 +287,7 @@ start:
 	line = create_line("Will click  %d times\n", amount);
 	head = slist_push(head, line);
 
-	switch (exit_function(&head, fd)) {
+	switch (exit_function_stdin(&head)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -332,7 +332,7 @@ void record_pattern()
  * On confirmation, it sets the autoclicker task to `AUTOCLICK_PATTERN` mode
  * with the specified number of repetitions.
  */
-void autoclick_pattern(int fd)
+void autoclick_pattern()
 {
 start:
 	struct slist *head = nullptr;
@@ -347,7 +347,7 @@ start:
 	line = create_line("Will repeat pattern  %d times\n", amount);
 	head = slist_push(head, line);
 
-	switch (exit_function(&head, fd)) {
+	switch (exit_function_stdin(&head)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -400,4 +400,25 @@ int exit_function(struct slist **head_ptr, int fd)
 
 	slist_delete(head_ptr, remove_line);
 	return c;
+}
+
+/**
+ * @brief Waits for the user to press a specific key or the exit key to close a
+ * menu.
+ * @param head_ptr A pointer to the head of the `slist` of lines to be removed
+ * upon closing.
+ * @param key_code The special key code that also closes the menu.
+ */
+void close_menu(struct slist **head_ptr, int fd)
+{
+	if (!head_ptr)
+		return;
+
+	int c;
+	while ((c = get_input(fd))) {
+		if (c == KEY_ESC || c == KEY_ENTER || c == cfg.key_show_config)
+			break;
+	}
+
+	slist_delete(head_ptr, remove_line);
 }

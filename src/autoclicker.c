@@ -49,23 +49,23 @@ int main()
 		key_code = get_input(fd);
 
 		if (key_code == cfg.key_show_config)
-			print_config();
+			print_config(fd);
 		else if (key_code == cfg.key_start)
 			autoclick_toggle();
 		else if (key_code == cfg.key_quit)
 			break;
 		else if (key_code == cfg.key_change_interval)
-			change_autoclick_interval(fd);
+			change_autoclick_interval();
 		else if (key_code == cfg.key_menu)
 			change_keybindings(fd);
 		else if (key_code == cfg.key_timer)
-			autoclick_timer(fd);
+			autoclick_timer();
 		else if (key_code == cfg.key_amount)
-			autoclick_amount(fd);
+			autoclick_amount();
 		else if (key_code == cfg.key_create_pattern)
 			record_pattern();
 		else if (key_code == cfg.key_play_pattern)
-			autoclick_pattern(fd);
+			autoclick_pattern();
 	}
 
 	if (write_config()) {

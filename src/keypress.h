@@ -23,9 +23,10 @@ int get_input(int fd);
 
 /**
  * @brief Prints the current keybindings and configuration to the terminal.
+ * @param fd The file descriptor for the input event device.
  * @details The menu stays open until the user presses the menu key or quit key.
  */
-void print_config();
+void print_config(int fd);
 
 /**
  * @brief Allows the user to change the keybindings for various actions.
@@ -37,11 +38,10 @@ void change_keybindings(int fd);
 
 /**
  * @brief Allows the user to set the autoclicker click interval.
- * @param fd The file descriptor for the input event device.
  * @details Enters a menu prompting the user to enter a new click interval in
  * milliseconds.
  */
-void change_autoclick_interval(int fd);
+void change_autoclick_interval();
 
 /**
  * @brief Toggles the autoclicker on or off.
@@ -52,19 +52,17 @@ void autoclick_toggle();
 
 /**
  * @brief Sets a timer for the autoclicker.
- * @param fd The file descriptor for the input event device.
  * @details Prompts the user for a duration in seconds, then sets the
  * autoclicker to run for that amount of time.
  */
-void autoclick_timer(int fd);
+void autoclick_timer();
 
 /**
  * @brief Sets the autoclicker to run for a specific number of clicks.
- * @param fd The file descriptor for the input event device.
  * @details Prompts the user for a number of clicks, then sets the autoclicker
  * to perform that many clicks.
  */
-void autoclick_amount(int fd);
+void autoclick_amount();
 
 /**
  * @brief Initiates the recording of a new mouse pattern.
@@ -74,9 +72,8 @@ void record_pattern();
 
 /**
  * @brief Plays a saved mouse pattern a specified number of times.
- * @param fd The file descriptor for the input event device.
  * @details Prompts the user for the number of repetitions.
  */
-void autoclick_pattern(int fd);
+void autoclick_pattern();
 
 #endif
