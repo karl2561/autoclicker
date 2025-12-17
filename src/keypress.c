@@ -3,6 +3,7 @@
  * @brief Implements functions for handling user input and menu interactions.
  */
 #include "keypress.h"
+#include "utils/config.h"
 #include "utils/conversion.h"
 #include "utils/print_line.h"
 #include "utils/slist.h"
@@ -184,6 +185,54 @@ select_key:
 	*(int *)cfg_map[value].field = c;
 }
 
+void change_autoclick_btn(int fd)
+{
+	atomic_store(&worker_run, false);
+	struct slist *head = nullptr;
+	struct printed_line *line;
+start:
+	line = create_line("Changing autoclick button\n");
+	head = slist_push(head, line);
+
+	line = create_line("Current key pressed: %s\n", kctc(cfg.key_pressed));
+	head = slist_push(head, line);
+	line = create_line(
+		"Press the key you wish to be the new key pressed\n");
+	head = slist_push(head, line);
+	line = create_line("Press Arrow Right for Right Mouse Button\n");
+	head = slist_push(head, line);
+	line = create_line("Press Arrow Left for Left Mouse Button\n");
+	head = slist_push(head, line);
+
+	int c = get_input(fd);
+
+	if (c == 105)
+		line = create_line(
+			"New autoclick key will be Left Mouse Button\n");
+	else if (c == 106)
+		line = create_line(
+			"New autoclick key will be Right Mouse Button\n");
+	else
+		line = create_line(
+			"New autoclick key will be: %s %d\n", kctc(c), c);
+
+	head = slist_push(head, line);
+
+	switch (exit_function(&head, fd)) {
+	case 'r':
+		goto start;
+	case -1:
+		return;
+	case '\n':
+		break;
+	}
+	if (c == 105)
+		cfg.key_pressed = BTN_LEFT;
+	else if (c == 106)
+		cfg.key_pressed = BTN_RIGHT;
+	else
+		cfg.key_pressed = c;
+}
 /**
  * @brief Provides a menu for the user to change the autoclick interval.
  *

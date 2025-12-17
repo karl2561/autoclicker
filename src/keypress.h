@@ -36,6 +36,7 @@ void print_config(int fd);
  */
 void change_keybindings(int fd);
 
+void change_autoclick_btn(int fd);
 /**
  * @brief Allows the user to set the autoclicker click interval.
  * @details Enters a menu prompting the user to enter a new click interval in

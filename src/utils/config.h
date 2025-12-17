@@ -15,14 +15,15 @@
 
 #define CFG_KEYS                                                               \
 	X(key_quit, KEY_ESC, "exit the program or close a menu")               \
-	X(key_create_pattern, KEY_F1, "create a new pattern")                  \
-	X(key_play_pattern, KEY_F2, "play saved pattern")                      \
+	X(key_start, KEY_F2, "start the autoclicker")                          \
 	X(key_show_config, KEY_F3, "show this info screen")                    \
-	X(key_start, KEY_F5, "start the autoclicker")                          \
-	X(key_change_interval, KEY_F6, "change click interval")                \
-	X(key_menu, KEY_F7, "change keybindings")                              \
-	X(key_timer, KEY_F9, "start autoclicker for a specified duration")     \
-	X(key_amount, KEY_F10, "click for X times")
+	X(key_create_pattern, KEY_F5, "create a new pattern")                  \
+	X(key_play_pattern, KEY_F6, "play saved pattern")                      \
+	X(key_change_interval, KEY_F7, "change click interval")                \
+	X(key_menu, KEY_F8, "change keybindings")                              \
+	X(key_btn, KEY_F9, "change autoclick button")                          \
+	X(key_timer, KEY_F10, "start autoclicker for a specified duration")    \
+	X(key_amount, KEY_F11, "click for X times")
 
 #define CFG_INTS X(interval_ms, 100, "interval between clicks (in ms)")
 #define CFG_BTNS X(key_pressed, BTN_LEFT, "key used for clicking")
@@ -31,7 +32,8 @@
  * @struct config
  * @brief Holds all configuration settings for the autoclicker.
  *
- * Uses X-macros to define its members from `CFG_KEYS`, `CFG_BTNS`, and `CFG_INTS`.
+ * Uses X-macros to define its members from `CFG_KEYS`, `CFG_BTNS`, and
+ * `CFG_INTS`.
  */
 struct config {
 #define X(name, value, desc) int name;
@@ -75,10 +77,10 @@ typedef enum {
  * allowing them to be accessed generically.
  */
 struct cfg_map_t {
-	const char *name;       /**< The programmatic name of the setting. */
-	const char *description;/**< A human-readable description. */
-	void *field;            /**< A pointer to the field in the `cfg` struct. */
-	cfg_type_t type;        /**< The type of the configuration field. */
+	const char *name;	 /**< The programmatic name of the setting. */
+	const char *description; /**< A human-readable description. */
+	void *field;	 /**< A pointer to the field in the `cfg` struct. */
+	cfg_type_t type; /**< The type of the configuration field. */
 };
 
 /** @brief An array that maps all configuration settings. */
@@ -98,7 +100,8 @@ extern int convert_field_to_int(int position);
 /**
  * @brief Gets a user-friendly name for a configuration setting.
  * @param i The index of the configuration field in `cfg_map`.
- * @return A dynamically allocated string with the name. The caller must free it.
+ * @return A dynamically allocated string with the name. The caller must free
+ * it.
  */
 extern char *get_name(int i);
 

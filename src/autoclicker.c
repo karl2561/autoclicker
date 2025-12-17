@@ -3,6 +3,7 @@
  * @brief Main entry point and event loop for the autoclicker application.
  */
 #include "autoclicker.h"
+#include "keypress.h"
 #include "worker.h"
 
 #include <stdio.h>
@@ -66,6 +67,8 @@ int main()
 			record_pattern();
 		else if (key_code == cfg.key_play_pattern)
 			autoclick_pattern();
+		else if (key_code == cfg.key_btn)
+			change_autoclick_btn(fd);
 	}
 
 	if (write_config()) {
