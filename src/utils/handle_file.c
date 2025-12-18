@@ -1,6 +1,7 @@
 /**
  * @file handle_file.c
- * @brief Implements functions for file I/O, device setup, and configuration management.
+ * @brief Implements functions for file I/O, device setup, and configuration
+ * management.
  */
 #include "handle_file.h"
 
@@ -13,8 +14,10 @@
 
 /**
  * @brief Creates and configures a virtual input device using uinput.
- * @param keycode The keycode that the virtual device will be able to emit (e.g., for mouse clicks).
- * @return The file descriptor for the new uinput device, or a negative value on error.
+ * @param keycode The keycode that the virtual device will be able to emit
+ * (e.g., for mouse clicks).
+ * @return The file descriptor for the new uinput device, or a negative value on
+ * error.
  */
 int create_autokey_setup(int keycode)
 {
@@ -73,8 +76,10 @@ void remove_autokey_setup(int fd)
 
 /**
  * @brief Opens the keyboard event device and sets it to non-blocking raw mode.
- * @param flags A pointer to an integer where the original file status flags will be stored.
- * @return The file descriptor for the keyboard event device, or a negative value on error.
+ * @param flags A pointer to an integer where the original file status flags
+ * will be stored.
+ * @return The file descriptor for the keyboard event device, or a negative
+ * value on error.
  */
 int create_keypress_setup(int *flags)
 {
@@ -91,7 +96,8 @@ int create_keypress_setup(int *flags)
 }
 
 /**
- * @brief Restores the original file status flags and closes the keyboard event device.
+ * @brief Restores the original file status flags and closes the keyboard event
+ * device.
  * @param fd The file descriptor of the keyboard event device.
  * @param flags The original file status flags to restore.
  */
@@ -102,7 +108,8 @@ void remove_keypress_setup(int fd, int flags)
 }
 
 /**
- * @brief Inserts a configuration value from a line of text into the config struct.
+ * @brief Inserts a configuration value from a line of text into the config
+ * struct.
  * @param position The index in `cfg_map` corresponding to the config setting.
  * @param line The line of text from the config file.
  */
@@ -120,6 +127,8 @@ static void insert_from_configs(int position, char *line)
 		return;
 
 	if (cfg_map[position].type == CFG_KEY)
+		*(int *)cfg_map[position].field = tmp_value;
+	if (cfg_map[position].type == CFG_BTN)
 		*(int *)cfg_map[position].field = tmp_value;
 	else if (cfg_map[position].type == CFG_INT_A)
 		atomic_store((atomic_int *)cfg_map[position].field, tmp_value);

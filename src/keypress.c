@@ -185,6 +185,12 @@ select_key:
 	*(int *)cfg_map[value].field = c;
 }
 
+/**
+ * @brief Provides a menu for the user to change the key being clicked
+ *
+ * Stops the autoclicker worker and  lets the user select a new key to use for
+ * auto clicking.
+ */
 void change_autoclick_btn(int fd)
 {
 	atomic_store(&worker_run, false);
@@ -213,8 +219,7 @@ start:
 		line = create_line(
 			"New autoclick key will be Right Mouse Button\n");
 	else
-		line = create_line(
-			"New autoclick key will be: %s %d\n", kctc(c), c);
+		line = create_line("New autoclick key will be: %s\n", kctc(c));
 
 	head = slist_push(head, line);
 
