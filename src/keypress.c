@@ -3,24 +3,21 @@
  * @brief Implements functions for handling user input and menu interactions.
  */
 #include "keypress.h"
-#include "utils/config.h"
-#include "utils/conversion.h"
-#include "utils/print_line.h"
-#include "utils/slist.h"
 
 #include <errno.h>
 #include <linux/input-event-codes.h>
 #include <linux/input.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/poll.h>
 #include <threads.h>
 #include <unistd.h>
 
-int exit_function(struct slist **head_ptr, int fd);
-void close_menu(struct slist **head_ptr, int fd);
+static int exit_function(struct slist **head_ptr, int fd);
+static void close_menu(struct slist **head_ptr, int fd);
 /** @brief List head for lines printed by `autoclick_toggle` to be
  * cleared later. */
-struct slist *start_line = nullptr;
+static struct slist *start_line = nullptr;
 
 /**
  * @brief Reads and returns a single key press event from an input device.
@@ -35,23 +32,33 @@ struct slist *start_line = nullptr;
  */
 int get_input(int fd)
 {
-	struct input_event ev, ev2;
-	while (read(fd, &ev2, sizeof(ev2)) > 0)
+	struct input_event ev;
+	// Drain old events
+	while (read(fd, &ev, sizeof(ev)) > 0)
 		;
 
+	struct pollfd pfd = {.fd = fd, .events = POLLIN};
+
 	while (1) {
-		ssize_t n = read(fd, &ev, sizeof(ev));
-		if (n == sizeof(ev)) {
-			if (ev.code == cfg.key_pressed)
-				continue;
-			if (ev.type == EV_KEY && ev.value == 1)
-				return ev.code;
-		} else if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
-			perror("read failed");
+		if (poll(&pfd, 1, -1) < 0) {
+			perror("poll");
 			return -1;
+		}
+
+		if (read(fd, &ev, sizeof(ev)) == sizeof(ev)) {
+			if (ev.type == EV_KEY && ev.value == 1 &&
+				ev.code != cfg.key_pressed)
+				return ev.code;
 		}
 	}
 	return -1;
+}
+
+int get_input_all(array_t *fd_array)
+{
+	(void)fd_array;
+
+	return 0;
 }
 
 /**

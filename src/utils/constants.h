@@ -8,9 +8,12 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#define PATH_USB_MOUSE "/dev/input/by-id/usb-1bcf_USB_Optical_Mouse-event-mouse"
-#define PATH_UINPUT "/dev/uinput"
+/**
+ * Should not be hardcoded, may also change between runs.
+ * discover correct event device at runtime.
+ * */
 #define PATH_KEYEV "/dev/input/event3"
+#define PATH_USB_MOUSE "/dev/input/by-id/usb-1bcf_USB_Optical_Mouse-event-mouse"
 
 /* Path is relative to the autoclicker executable */
 #define PATH_PATTERN_SAVE ".pattern"

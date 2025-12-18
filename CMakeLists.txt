@@ -11,9 +11,15 @@ file(GLOB_RECURSE SOURCES
 
 add_executable(autoclicker ${SOURCES})
 
-target_include_directories(autoclicker PRIVATE
-    src
-    src/utils
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBUDEV IMPORTED_TARGET REQUIRED libudev)
+
+target_link_libraries(autoclicker
+    PRIVATE PkgConfig::libudev
+)
+
+target_include_directories(autoclicker
+    PRIVATE src
 )
 
 find_package(Doxygen)

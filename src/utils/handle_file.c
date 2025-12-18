@@ -6,11 +6,16 @@
 #include "handle_file.h"
 
 #include <fcntl.h>
+#include <libudev.h>
 #include <linux/uinput.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+
+static char event_path[] = "/dev/input/event";
+static char PATH_UINPUT[] = "/dev/uinput";
 
 /**
  * @brief Creates and configures a virtual input device using uinput.
@@ -75,13 +80,142 @@ void remove_autokey_setup(int fd)
 }
 
 /**
+ * @brief Gets a list of all matching input descriptor endings
+ * @param udev used to enumerate over
+ * @param property to match the list against
+ * @param value of that property
+ * @return A malloced array of all matches, containing the integers.
+ */
+static array_t *get_input_device_list(
+	struct udev *udev, char const *const property, char const *const value)
+{
+	array_t *i = array_init(sizeof(int));
+	if (!i) {
+		perror("Failed to create input_event_ints");
+		return nullptr;
+	}
+
+	struct udev_enumerate *e = udev_enumerate_new(udev);
+	if (!e) {
+		free(i);
+		perror("Failed to create udev_enumerate");
+		return nullptr;
+	}
+
+	udev_enumerate_add_match_subsystem(e, "input");
+	udev_enumerate_add_match_property(e, property, value);
+	udev_enumerate_scan_devices(e);
+
+	struct udev_list_entry *entry;
+	struct udev_device *dev = nullptr;
+	int const event_len = strlen(event_path);
+	char const *devnode = nullptr;
+	char const *path = nullptr;
+	udev_list_entry_foreach(entry, udev_enumerate_get_list_entry(e))
+	{
+		path = udev_list_entry_get_name(entry);
+		if (!(dev = udev_device_new_from_syspath(udev, path)))
+			continue;
+
+		if ((devnode = udev_device_get_devnode(dev)) &&
+			strncmp(devnode, event_path, event_len) == 0) {
+			int event_int = atoi(devnode + event_len);
+			if (array_push(i, &event_int) < 0) {
+				perror("Failed to insert all elements");
+				break;
+			}
+		}
+
+		udev_device_unref(dev);
+	}
+
+	free(e);
+
+	return i;
+}
+
+/**
+ * @brief Opens the keyboard event device and sets it to non-blocking raw mode.
+ * @param flags a nullptr, will return malloced.
+ * @return array of results, nullptr on failure.
+ */
+array_t *create_keypress_setup(array_t *flag_array)
+{
+	char path[MAX_LINE_LENGTH];
+	int n, value, fd, flag;
+	struct udev *udev = udev_new();
+	array_t *keyboard =
+		get_input_device_list(udev, "ID_INPUT_KEYBOARD", "1");
+	array_t *fd_array = array_init(sizeof(int));
+	flag_array = array_init(sizeof(int));
+	if (!udev || !keyboard | !fd_array || !flag_array)
+		goto error;
+
+	for (size_t i = 0; i < keyboard->len; i++) {
+		value = ((int *)keyboard->data)[i];
+		n = snprintf(path, MAX_LINE_LENGTH, "%s%d", event_path, value);
+		if (n < 0 || n >= MAX_LINE_LENGTH) {
+			perror("path to long");
+			continue;
+		}
+
+		if ((fd = open(path, O_RDONLY) < 0)) {
+			perror("Could not open file");
+			continue;
+		}
+
+		flag = fcntl(fd, F_GETFL, 0);
+		fcntl(fd, F_SETFL, flag | O_NONBLOCK);
+		if (array_push(flag_array, &flag) < 0) {
+			perror("Failed to push flags");
+			break;
+		}
+		if (array_push(fd_array, &fd) < 0) {
+			perror("Failed to push fd");
+			close(fd);
+			break;
+		}
+	}
+
+	udev_unref(udev);
+	free(keyboard);
+	return fd_array;
+error:
+	if (udev)
+		udev_unref(udev);
+	if (keyboard)
+		array_free(keyboard);
+	if (fd_array)
+		array_free(fd_array);
+	if (flag_array)
+		array_free(flag_array);
+	return nullptr;
+}
+
+/**
+ * @brief Restores the original file status flags and closes all fds.
+ * @param array of file descriptors
+ * @param array of their flags
+ */
+void remove_keypress_setup(array_t *fd_array, array_t *flag_array)
+{
+	int value, flags;
+	for (size_t i = 0; i < fd_array->len; i++) {
+		value = ((int *)fd_array->data)[i];
+		flags = ((int *)flag_array->data)[i];
+		fcntl(value, F_SETFL, flags);
+		close(value);
+	}
+}
+
+/**
  * @brief Opens the keyboard event device and sets it to non-blocking raw mode.
  * @param flags A pointer to an integer where the original file status flags
  * will be stored.
  * @return The file descriptor for the keyboard event device, or a negative
  * value on error.
  */
-int create_keypress_setup(int *flags)
+int create_keypress_setup_old(int *flags)
 {
 	int fd = open(PATH_KEYEV, O_RDONLY);
 	if (fd < 0) {
@@ -101,7 +235,7 @@ int create_keypress_setup(int *flags)
  * @param fd The file descriptor of the keyboard event device.
  * @param flags The original file status flags to restore.
  */
-void remove_keypress_setup(int fd, int flags)
+void remove_keypress_setup_old(int fd, int flags)
 {
 	fcntl(fd, F_SETFL, flags);
 	close(fd);

@@ -4,6 +4,8 @@
  */
 #include "autoclicker.h"
 #include "keypress.h"
+#include "utils/array_t.h"
+#include "utils/handle_file.h"
 #include "worker.h"
 
 #include <stdio.h>
@@ -33,11 +35,20 @@ int main()
 		head = slist_push(head, line);
 	}
 
-	int flags = 0, fd = create_keypress_setup(&flags);
+	int flags;
+	int fd = create_keypress_setup_old(&flags);
 	if (fd < 0) {
-		perror("File open!\n");
+		perror("Open file");
 		return 1;
 	}
+	/* new version;
+	array_t *flag_array;
+	array_t *fd_array = create_keypress_setup(flag_array);
+	if (!fd_array) {
+		perror("Open file to read input");
+		return 1;
+	}
+	*/
 
 	start_worker();
 	line = create_line(
@@ -80,7 +91,13 @@ int main()
 	stop_worker();
 	atomic_store(&worker_run, false);
 
-	remove_keypress_setup(fd, flags);
+	remove_keypress_setup_old(fd, flags);
+	/*
+	 * new version:
+	remove_keypress_setup(fd_array, flag_array);
+	array_free(flag_array);
+	array_free(fd_array);
+	*/
 	slist_delete(&head, remove_line);
 	return 0;
 }
