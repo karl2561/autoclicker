@@ -35,20 +35,17 @@ int main()
 		head = slist_push(head, line);
 	}
 
-	int flags;
-	int fd = create_keypress_setup_old(&flags);
-	if (fd < 0) {
-		perror("Open file");
+	array_t *flag_array = array_init(sizeof(int));
+	if (!flag_array) {
+		perror("Failed to initialize flag array");
 		return 1;
 	}
-	/* new version;
-	array_t *flag_array;
+
 	array_t *fd_array = create_keypress_setup(flag_array);
 	if (!fd_array) {
 		perror("Open file to read input");
 		return 1;
 	}
-	*/
 
 	start_worker();
 	line = create_line(
@@ -58,10 +55,10 @@ int main()
 
 	int key_code = 0;
 	while (key_code >= 0) {
-		key_code = get_input(fd);
+		key_code = get_input(fd_array);
 
 		if (key_code == cfg.key_show_config)
-			print_config(fd);
+			print_config(fd_array);
 		else if (key_code == cfg.key_start)
 			autoclick_toggle();
 		else if (key_code == cfg.key_quit)
@@ -69,7 +66,7 @@ int main()
 		else if (key_code == cfg.key_change_interval)
 			change_autoclick_interval();
 		else if (key_code == cfg.key_menu)
-			change_keybindings(fd);
+			change_keybindings(fd_array);
 		else if (key_code == cfg.key_timer)
 			autoclick_timer();
 		else if (key_code == cfg.key_amount)
@@ -79,7 +76,7 @@ int main()
 		else if (key_code == cfg.key_play_pattern)
 			autoclick_pattern();
 		else if (key_code == cfg.key_btn)
-			change_autoclick_btn(fd);
+			change_autoclick_btn(fd_array);
 	}
 
 	if (write_config()) {
@@ -91,13 +88,9 @@ int main()
 	stop_worker();
 	atomic_store(&worker_run, false);
 
-	remove_keypress_setup_old(fd, flags);
-	/*
-	 * new version:
 	remove_keypress_setup(fd_array, flag_array);
 	array_free(flag_array);
 	array_free(fd_array);
-	*/
 	slist_delete(&head, remove_line);
 	return 0;
 }

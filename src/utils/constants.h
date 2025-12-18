@@ -8,11 +8,13 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+constexpr char EVENT_PATH[] = "/dev/input/event";
+constexpr char UINPUT_PATH[] = "/dev/uinput";
+
 /**
  * Should not be hardcoded, may also change between runs.
  * discover correct event device at runtime.
  * */
-#define PATH_KEYEV "/dev/input/event3"
 #define PATH_USB_MOUSE "/dev/input/by-id/usb-1bcf_USB_Optical_Mouse-event-mouse"
 
 /* Path is relative to the autoclicker executable */

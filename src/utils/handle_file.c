@@ -4,18 +4,15 @@
  * management.
  */
 #include "handle_file.h"
+#include "array_t.h"
 
 #include <fcntl.h>
-#include <libudev.h>
 #include <linux/uinput.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-
-static char event_path[] = "/dev/input/event";
-static char PATH_UINPUT[] = "/dev/uinput";
 
 /**
  * @brief Creates and configures a virtual input device using uinput.
@@ -26,7 +23,7 @@ static char PATH_UINPUT[] = "/dev/uinput";
  */
 int create_autokey_setup(int keycode)
 {
-	int fd = open(PATH_UINPUT, O_WRONLY | O_NONBLOCK);
+	int fd = open(UINPUT_PATH, O_WRONLY | O_NONBLOCK);
 	if (fd < 0)
 		return fd;
 
@@ -86,21 +83,14 @@ void remove_autokey_setup(int fd)
  * @param value of that property
  * @return A malloced array of all matches, containing the integers.
  */
-static array_t *get_input_device_list(
-	struct udev *udev, char const *const property, char const *const value)
+array_t *get_input_device_list(
+	char const *const property, char const *const value)
 {
+	struct udev *udev = udev_new();
 	array_t *i = array_init(sizeof(int));
-	if (!i) {
-		perror("Failed to create input_event_ints");
-		return nullptr;
-	}
-
 	struct udev_enumerate *e = udev_enumerate_new(udev);
-	if (!e) {
-		free(i);
-		perror("Failed to create udev_enumerate");
-		return nullptr;
-	}
+	if (!udev || !i || !e)
+		goto error;
 
 	udev_enumerate_add_match_subsystem(e, "input");
 	udev_enumerate_add_match_property(e, property, value);
@@ -108,7 +98,7 @@ static array_t *get_input_device_list(
 
 	struct udev_list_entry *entry;
 	struct udev_device *dev = nullptr;
-	int const event_len = strlen(event_path);
+	int const event_len = strlen(EVENT_PATH);
 	char const *devnode = nullptr;
 	char const *path = nullptr;
 	udev_list_entry_foreach(entry, udev_enumerate_get_list_entry(e))
@@ -118,7 +108,7 @@ static array_t *get_input_device_list(
 			continue;
 
 		if ((devnode = udev_device_get_devnode(dev)) &&
-			strncmp(devnode, event_path, event_len) == 0) {
+			strncmp(devnode, EVENT_PATH, event_len) == 0) {
 			int event_int = atoi(devnode + event_len);
 			if (array_push(i, &event_int) < 0) {
 				perror("Failed to insert all elements");
@@ -129,9 +119,64 @@ static array_t *get_input_device_list(
 		udev_device_unref(dev);
 	}
 
+	free(udev);
 	free(e);
 
 	return i;
+error:
+	if (udev)
+		free(udev);
+	if (i)
+		free(i);
+	if (e)
+		free(e);
+
+	return nullptr;
+}
+
+/**
+ * @brief Helper function to open several event files
+ * @param Array of ints, which files to open
+ * @return Array of file descriptors, nullptr on failure. Caller must free.
+ */
+array_t *open_files(array_t *files)
+{
+	char path[MAX_LINE_LENGTH];
+	int n, value, fd;
+	array_t *fd_array = array_init(sizeof(int));
+	if (!fd_array)
+		return nullptr;
+	for (size_t i = 0; i < files->len; i++) {
+		value = ((int *)files->data)[i];
+		n = snprintf(path, MAX_LINE_LENGTH, "%s%d", EVENT_PATH, value);
+		if (n < 0 || n >= MAX_LINE_LENGTH) {
+			perror("Could not create path");
+			continue;
+		}
+
+		if ((fd = open(path, O_RDONLY)) < 0) {
+			perror("Could not open file");
+			continue;
+		}
+
+		if (array_push(fd_array, &fd) < 0) {
+			perror("Failed to push fd");
+			close(fd);
+			break;
+		}
+	}
+
+	return fd_array;
+}
+
+/**
+ * @brief Helper function to use with array_forEach to close an array of file
+ * descriptors
+ * @param file to close
+ */
+void close_file(void *fd)
+{
+	close(*(int *)fd);
 }
 
 /**
@@ -141,54 +186,47 @@ static array_t *get_input_device_list(
  */
 array_t *create_keypress_setup(array_t *flag_array)
 {
-	char path[MAX_LINE_LENGTH];
-	int n, value, fd, flag;
-	struct udev *udev = udev_new();
-	array_t *keyboard =
-		get_input_device_list(udev, "ID_INPUT_KEYBOARD", "1");
-	array_t *fd_array = array_init(sizeof(int));
-	flag_array = array_init(sizeof(int));
-	if (!udev || !keyboard | !fd_array || !flag_array)
+	int fd, flags;
+	raw_mode_setup();
+	array_t *keyboard = nullptr;
+	array_t *fd_array = nullptr;
+	if (!flag_array)
+		goto error;
+	keyboard = get_input_device_list("ID_INPUT_KEYBOARD", "1");
+	if (!keyboard)
 		goto error;
 
-	for (size_t i = 0; i < keyboard->len; i++) {
-		value = ((int *)keyboard->data)[i];
-		n = snprintf(path, MAX_LINE_LENGTH, "%s%d", event_path, value);
-		if (n < 0 || n >= MAX_LINE_LENGTH) {
-			perror("path to long");
+	fd_array = open_files(keyboard);
+	if (!fd_array)
+		goto error;
+
+	for (size_t i = 0; i < fd_array->len; i++) {
+		fd = ((int *)fd_array->data)[i];
+		flags = fcntl(fd, F_GETFL, 0);
+
+		if (flags < 0) {
+			perror("F_GETFL failed");
+			flags = 0;
+		}
+
+		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+			perror("F_SETFL failed");
 			continue;
 		}
 
-		if ((fd = open(path, O_RDONLY) < 0)) {
-			perror("Could not open file");
-			continue;
-		}
-
-		flag = fcntl(fd, F_GETFL, 0);
-		fcntl(fd, F_SETFL, flag | O_NONBLOCK);
-		if (array_push(flag_array, &flag) < 0) {
+		if (array_push(flag_array, &flags) < 0) {
 			perror("Failed to push flags");
-			break;
-		}
-		if (array_push(fd_array, &fd) < 0) {
-			perror("Failed to push fd");
-			close(fd);
 			break;
 		}
 	}
 
-	udev_unref(udev);
 	free(keyboard);
 	return fd_array;
 error:
-	if (udev)
-		udev_unref(udev);
 	if (keyboard)
 		array_free(keyboard);
 	if (fd_array)
 		array_free(fd_array);
-	if (flag_array)
-		array_free(flag_array);
 	return nullptr;
 }
 
@@ -199,46 +237,24 @@ error:
  */
 void remove_keypress_setup(array_t *fd_array, array_t *flag_array)
 {
+	bool setflags = true;
+	if (!fd_array)
+		return;
+
+	if (!flag_array || fd_array->len != flag_array->len)
+		setflags = false;
+
 	int value, flags;
 	for (size_t i = 0; i < fd_array->len; i++) {
 		value = ((int *)fd_array->data)[i];
-		flags = ((int *)flag_array->data)[i];
-		fcntl(value, F_SETFL, flags);
+		if (setflags) {
+			flags = ((int *)flag_array->data)[i];
+			if (fcntl(value, F_SETFL, flags) < 0)
+				perror("Failed to restore flags");
+		}
+
 		close(value);
 	}
-}
-
-/**
- * @brief Opens the keyboard event device and sets it to non-blocking raw mode.
- * @param flags A pointer to an integer where the original file status flags
- * will be stored.
- * @return The file descriptor for the keyboard event device, or a negative
- * value on error.
- */
-int create_keypress_setup_old(int *flags)
-{
-	int fd = open(PATH_KEYEV, O_RDONLY);
-	if (fd < 0) {
-		return fd;
-	}
-	raw_mode_setup();
-
-	*flags = fcntl(fd, F_GETFL, 0);
-	fcntl(fd, F_SETFL, *flags | O_NONBLOCK);
-
-	return fd;
-}
-
-/**
- * @brief Restores the original file status flags and closes the keyboard event
- * device.
- * @param fd The file descriptor of the keyboard event device.
- * @param flags The original file status flags to restore.
- */
-void remove_keypress_setup_old(int fd, int flags)
-{
-	fcntl(fd, F_SETFL, flags);
-	close(fd);
 }
 
 /**

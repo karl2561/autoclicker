@@ -19,21 +19,15 @@ This program allows you to automate mouse clicks. It provides multiple modes for
 *   **Runtime Configuration:** Change settings like click interval and mode on the fly using hotkeys.
 *   **Persistent Configuration:** Your settings are saved to a `.config` file in the same directory as the executable and loaded on startup.
 
-## WARNING: Hardcoded Device Paths
+## WARNING: create_pattern
 
-This application uses hardcoded paths to read keyboard input (e.g., `/dev/input/event3`). This path is **highly likely to be different** on your system, which will cause the program to fail to capture hotkeys.
+Recording and playing a pattern technically works, the coordinates are being captured correctly, saved and replayed. However due to limitations on my window manager wayland I could not fully test that feature.
 
-I wanted to make the paths dynamic, but couldn't be bothered to do so currently.
-Additionally whilst record- and play-pattern technically works, I cannot fully verify and operate it, due to limitations with wayland not allowing me to directly letting me set inputs.
-It is important to note that the pattern always starts at 0,0 and that the screensize also is hardcoded. I did not bother to fix this, since I am not able to correctly make it work anyways.
+Due to the limitations I didn't bother to dynamically get the screensize.
+Currently it is hardcoded in constants.h.
 
-Before running, you must identify the correct event device for your keyboard and update the `PATH_KEYEV` constant in `src/utils/constants.h`.
-
-You can find your keyboard's device file by running:
-```sh
-ls -l /dev/input/by-id/
-```
-Look for the device that ends with `-event-kbd`. The full path will be something like `/dev/input/eventX`. You will need to recompile the program after changing the path.
+Also the pattern currently always starts at 0,0 due to the lack of abs coordinates.
+Additionally there could be scaling applied by your window manager, distoring the coordinates.
 
 ## Building from Source
 
@@ -68,11 +62,15 @@ The application runs in the terminal and displays the current configuration.
 
 ### Default Hotkeys
 
-*   **F5:** Start/Stop Autoclicker
-*   **F1:** Start/Stop recording a mouse pattern.
+
+*   **ESC:** To exit
+*   **F2:** Start/Stop autoclicker
+*   **F3:** To show info
+*   **F5:** Record a mouse pattern.
     *   **Left-click** to record a position.
     *   **Right-click** to finish recording.
-*   **Arrow Keys:** Navigate and modify settings in the terminal UI.
+*   **F6:** To play a pattern.
+*   **F7:** To change keybindings
 *   **ESC:** Exit the program.
 
 These keybindings are configurable at runtime and are saved in the `.config` file.

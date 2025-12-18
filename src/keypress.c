@@ -4,17 +4,14 @@
  */
 #include "keypress.h"
 
-#include <errno.h>
-#include <linux/input-event-codes.h>
 #include <linux/input.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/poll.h>
-#include <threads.h>
 #include <unistd.h>
 
-static int exit_function(struct slist **head_ptr, int fd);
-static void close_menu(struct slist **head_ptr, int fd);
+static int exit_function(struct slist **head_ptr, array_t *fd_array);
+static void close_menu(struct slist **head_ptr, array_t *fd_array);
 /** @brief List head for lines printed by `autoclick_toggle` to be
  * cleared later. */
 static struct slist *start_line = nullptr;
@@ -27,38 +24,50 @@ static struct slist *start_line = nullptr;
  * 1) is received, ignoring repeated key-down events for the currently pressed
  * key.
  *
- * @param fd The file descriptor of the input event device.
+ * @param list of file descriptors to listen to
  * @return The `ev.code` of the pressed key, or -1 if a read error occurs.
  */
-int get_input(int fd)
+int get_input(array_t *fd_array)
 {
 	struct input_event ev;
-	// Drain old events
-	while (read(fd, &ev, sizeof(ev)) > 0)
-		;
+	size_t n = fd_array->len;
+	struct pollfd *pfds = calloc(n, sizeof(struct pollfd));
+	if (!pfds)
+		return -1;
 
-	struct pollfd pfd = {.fd = fd, .events = POLLIN};
+	/* Setup pollfds to drain old events */
+	for (size_t i = 0; i < n; i++) {
+		pfds[i].fd = ((int *)fd_array->data)[i];
+		pfds[i].events = POLLIN;
 
-	while (1) {
-		if (poll(&pfd, 1, -1) < 0) {
+		/* Draining old events */
+		while (read(pfds[i].fd, &ev, sizeof(ev)) > 0)
+			;
+	}
+
+	while (true) {
+		if (poll(pfds, n, -1) < 0) {
 			perror("poll");
+			free(pfds);
 			return -1;
 		}
 
-		if (read(fd, &ev, sizeof(ev)) == sizeof(ev)) {
-			if (ev.type == EV_KEY && ev.value == 1 &&
-				ev.code != cfg.key_pressed)
+		for (size_t i = 0; i < n; i++) {
+			if (!(pfds[i].revents & POLLIN))
+				continue;
+			if (read(pfds[i].fd, &ev, sizeof(ev)) != sizeof(ev))
+				continue;
+			if (ev.type != EV_KEY || ev.value != 1)
+				continue;
+			if (ev.code != cfg.key_pressed) {
+				free(pfds);
 				return ev.code;
+			}
 		}
 	}
+
+	free(pfds);
 	return -1;
-}
-
-int get_input_all(array_t *fd_array)
-{
-	(void)fd_array;
-
-	return 0;
 }
 
 /**
@@ -68,7 +77,7 @@ int get_input_all(array_t *fd_array)
  * configuration item. It then waits for the user to press the menu key to close
  * the display.
  */
-void print_config(int fd)
+void print_config(array_t *fd_array)
 {
 	struct slist *head = nullptr;
 	struct printed_line *line;
@@ -91,7 +100,7 @@ void print_config(int fd)
 		head = slist_push(head, line);
 	}
 
-	close_menu(&head, fd);
+	close_menu(&head, fd_array);
 }
 
 /**
@@ -102,7 +111,7 @@ void print_config(int fd)
  * prompted to press a new key. The function checks for conflicts with existing
  * keybindings before applying the change.
  */
-void change_keybindings(int fd)
+void change_keybindings(array_t *fd_array)
 {
 	atomic_store(&worker_run, false);
 	struct slist *head = nullptr;
@@ -123,7 +132,7 @@ start:
 	line = create_line("Press ESC to exit this menu\n");
 	head = slist_push(head, line);
 
-	int c = get_input(fd);
+	int c = get_input(fd_array);
 	if (c == KEY_ESC) {
 		slist_delete(&head, remove_line);
 		return;
@@ -159,7 +168,7 @@ select_key:
 	slist_delete(&head, remove_line);
 	return;
 	*/
-	c = get_input(fd);
+	c = get_input(fd_array);
 
 	for (int i = 0; i < (int)cfg_map_length; i++) {
 		if (cfg_map[i].type != CFG_KEY)
@@ -180,7 +189,7 @@ select_key:
 	line = create_line("New activation key will be: %s\n", kctc(c));
 	head = slist_push(head, line);
 
-	switch (exit_function(&head, fd)) {
+	switch (exit_function(&head, fd_array)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -198,7 +207,7 @@ select_key:
  * Stops the autoclicker worker and  lets the user select a new key to use for
  * auto clicking.
  */
-void change_autoclick_btn(int fd)
+void change_autoclick_btn(array_t *fd_array)
 {
 	atomic_store(&worker_run, false);
 	struct slist *head = nullptr;
@@ -217,7 +226,7 @@ start:
 	line = create_line("Press Arrow Left for Left Mouse Button\n");
 	head = slist_push(head, line);
 
-	int c = get_input(fd);
+	int c = get_input(fd_array);
 
 	if (c == 105)
 		line = create_line(
@@ -230,7 +239,7 @@ start:
 
 	head = slist_push(head, line);
 
-	switch (exit_function(&head, fd)) {
+	switch (exit_function(&head, fd_array)) {
 	case 'r':
 		goto start;
 	case -1:
@@ -430,7 +439,7 @@ start:
  * @return The character code of the user's choice ('\n', ESC_KEY, 'r', or -1 on
  * error).
  */
-int exit_function(struct slist **head_ptr, int fd)
+int exit_function(struct slist **head_ptr, array_t *fd_array)
 {
 	if (!head_ptr)
 		return -1;
@@ -447,7 +456,7 @@ int exit_function(struct slist **head_ptr, int fd)
 	*head_ptr = slist_push(*head_ptr, line);
 
 	int c;
-	while ((c = get_input(fd))) {
+	while ((c = get_input(fd_array))) {
 		if (c == KEY_R) {
 			c = 'r';
 			break;
@@ -471,13 +480,13 @@ int exit_function(struct slist **head_ptr, int fd)
  * upon closing.
  * @param key_code The special key code that also closes the menu.
  */
-void close_menu(struct slist **head_ptr, int fd)
+void close_menu(struct slist **head_ptr, array_t *fd_array)
 {
 	if (!head_ptr)
 		return;
 
 	int c;
-	while ((c = get_input(fd))) {
+	while ((c = get_input(fd_array))) {
 		if (c == KEY_ESC || c == KEY_ENTER || c == cfg.key_show_config)
 			break;
 	}

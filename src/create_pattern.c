@@ -1,21 +1,28 @@
 /**
  * @file create_pattern.c
- * @brief Implementation of functions for creating, reading, and writing mouse movement patterns.
+ * @brief Implementation of functions for creating, reading, and writing mouse
+ * movement patterns.
  */
 #include "create_pattern.h"
+#include "utils/array_t.h"
+#include "utils/constants.h"
+#include "utils/handle_file.h"
 
 #include <fcntl.h>
 #include <linux/input-event-codes.h>
 #include <linux/input.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/poll.h>
 #include <unistd.h>
 
 /**
  * @brief Allocates and initializes a new Movement struct.
  * @param x The x-coordinate relative movement.
  * @param y The y-coordinate relative movement.
- * @return A pointer to the newly allocated Movement struct, or `nullptr` on memory allocation failure.
+ * @return A pointer to the newly allocated Movement struct, or `nullptr` on
+ * memory allocation failure.
  */
 struct Movement *create_input(int x, int y)
 {
@@ -29,47 +36,89 @@ struct Movement *create_input(int x, int y)
 	return newPointer;
 }
 
+void get_input_event(struct input_event *ev, struct pollfd *pfds, size_t n)
+{
+	int ev_size = sizeof(struct input_event);
+	for (size_t i = 0; i < n; i++) {
+		if (!(pfds[i].revents & POLLIN)) {
+			continue;
+		} else if (read(pfds[i].fd, ev, ev_size) != ev_size) {
+			continue;
+		} else {
+			return;
+		}
+	}
+	return;
+}
+
 /**
- * @brief Records a mouse movement pattern by reading from the mouse device file.
+ * @brief Records a mouse movement pattern by reading from the mouse device
+ * file.
  *
- * This function opens the USB mouse device file and reads input events. It tracks
- * relative mouse movement (REL_X, REL_Y) and records the accumulated x and y
- * changes upon a left-click (BTN_LEFT). The recording session ends when the right
- * mouse button (BTN_RIGHT) is pressed. The movements are stored in a singly-linked
- * list.
+ * This function opens the USB mouse device file and reads input events. It
+ * tracks relative mouse movement (REL_X, REL_Y) and records the accumulated x
+ * and y changes upon a left-click (BTN_LEFT). The recording session ends when
+ * the right mouse button (BTN_RIGHT) is pressed. The movements are stored in a
+ * singly-linked list.
  *
  * @return A pointer to the head of an `slist` containing the recorded pattern.
  *         Each node's data is a `struct Movement`. Returns `nullptr` on error.
  */
 struct slist *create_pattern()
 {
-	int fd = open(PATH_USB_MOUSE, O_RDONLY);
-	if (!fd) {
-		perror("File open!\n");
-		return nullptr;
-	}
-
 	struct input_event ev;
 	struct slist *head = nullptr;
 	struct slist *tail = nullptr;
+	array_t *fd_array = nullptr;
+	struct pollfd *pfds = nullptr;
+
+	array_t *input_mice = get_input_device_list("ID_INPUT_MOUSE", "1");
+	if (!input_mice)
+		goto error;
+
+	fd_array = open_files(input_mice);
+	if (!fd_array)
+		goto error;
+
+	size_t n = input_mice->len;
+	pfds = calloc(n, sizeof(struct pollfd));
+	if (!pfds)
+		goto error;
+
+	for (size_t i = 0; i < n; i++) {
+		pfds[i].fd = ((int *)fd_array->data)[i];
+		pfds[i].events = POLLIN;
+	}
 
 	int x = 0, y = 0;
-	while (read(fd, &ev, sizeof(ev)) > 0) {
-		if (ev.type == EV_KEY && ev.code == BTN_RIGHT)
-			break;
+	while (true) {
+		if (poll(pfds, n, -1) < 0)
+			goto error;
+
+		get_input_event(&ev, pfds, n);
+		for (size_t i = 0; i < n; i++)
+			pfds[i].revents = 0;
+
 		if (ev.type == EV_REL) {
 			if (ev.code == REL_X)
 				x += ev.value;
 			if (ev.code == REL_Y)
 				y += ev.value;
+			continue;
 		}
 
-		if (ev.type == EV_KEY && ev.code == BTN_LEFT && ev.value == 1) {
+		if (ev.type != EV_KEY || ev.value != 1)
+			continue;
+
+		// make this dynamic later
+		if (ev.code == BTN_RIGHT)
+			break;
+
+		if (ev.code == cfg.key_pressed) {
+			tail = slist_append(tail, create_input(x, y));
+
 			if (!head)
-				head = tail = slist_append(
-					nullptr, create_input(x, y));
-			else
-				tail = slist_append(tail, create_input(x, y));
+				head = tail;
 
 			if (!tail)
 				goto error;
@@ -80,8 +129,14 @@ struct slist *create_pattern()
 
 	return head;
 error:
-	if (fd)
-		close(fd);
+	if (input_mice)
+		array_free(input_mice);
+
+	if (fd_array) {
+		array_forEach(fd_array, close_file);
+		array_free(fd_array);
+	}
+
 	if (head)
 		slist_delete(&head, remove_item);
 	return nullptr;
@@ -92,10 +147,11 @@ error:
  *
  * This function is designed to be used with `slist_delete` or `slist_pop`.
  * Since `struct Movement` itself doesn't contain pointers to allocated memory,
- * this function currently does nothing. The memory for the struct passed to `data`
- * is freed by the slist functions.
+ * this function currently does nothing. The memory for the struct passed to
+ * `data` is freed by the slist functions.
  *
- * @param data A void pointer to the data of a list node (expected to be `struct Movement*`).
+ * @param data A void pointer to the data of a list node (expected to be `struct
+ * Movement*`).
  */
 void remove_item(void *data)
 {
@@ -105,7 +161,8 @@ void remove_item(void *data)
 
 /**
  * @brief Prints the coordinates of a `Movement` struct to standard output.
- * @param data A void pointer to the data of a list node (expected to be `struct Movement*`).
+ * @param data A void pointer to the data of a list node (expected to be `struct
+ * Movement*`).
  */
 void print_item(void *data)
 {
@@ -117,10 +174,11 @@ void print_item(void *data)
  * @brief Reads a saved mouse pattern from a file.
  *
  * Opens the pattern file defined by `PATH_PATTERN_SAVE` and parses each line
- * to reconstruct the `Movement` data. Each line is expected to be in the format "x=  num,y=  num".
+ * to reconstruct the `Movement` data. Each line is expected to be in the format
+ * "x=  num,y=  num".
  *
- * @return A pointer to the head of an `slist` containing the pattern, or `nullptr` if the file
- *         cannot be opened or an error occurs during parsing.
+ * @return A pointer to the head of an `slist` containing the pattern, or
+ * `nullptr` if the file cannot be opened or an error occurs during parsing.
  */
 struct slist *read_pattern()
 {
@@ -158,9 +216,9 @@ error:
 /**
  * @brief Writes a mouse pattern to a file.
  *
- * Opens the pattern file defined by `PATH_PATTERN_SAVE` in write mode and writes
- * the coordinates from each `Movement` struct in the provided linked list.
- * Each movement is written on a new line in the format "x=%5d,y=%5d".
+ * Opens the pattern file defined by `PATH_PATTERN_SAVE` in write mode and
+ * writes the coordinates from each `Movement` struct in the provided linked
+ * list. Each movement is written on a new line in the format "x=%5d,y=%5d".
  *
  * @param head A pointer to the head of the `slist` containing the pattern.
  * @return 0 on success, -1 on failure (e.g., if the file cannot be opened).

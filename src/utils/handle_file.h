@@ -11,6 +11,8 @@
 #include "constants.h"
 #include "raw_mode.h"
 
+#include <libudev.h>
+
 /**
  * @brief Creates and configures a virtual input device using uinput.
  * @param keycode The keycode that the virtual device will be able to emit
@@ -27,6 +29,29 @@
 void remove_autokey_setup(int fd);
 
 /**
+ * @brief Gets a list of all matching input descriptor endings
+ * @param property to match the list against
+ * @param value of that property
+ * @return A malloced array of all matches, containing the integers.
+ */
+array_t *get_input_device_list(
+	char const *const property, char const *const value);
+
+/**
+ * @brief Helper function to open several event files
+ * @param Array of ints, which files to open
+ * @return Array of file descriptors, nullptr on failure. Caller must free.
+ */
+array_t *open_files(array_t *files);
+
+/**
+ * @brief Helper function to use with array_forEach to close an array of file
+ * descriptors
+ * @param file to close
+ */
+void close_file(void *fd);
+
+/**
  * @brief Opens the keyboard event device and sets it to non-blocking raw mode.
  * @param flags a nullptr, will return malloced.
  * @return array of results, nullptr on failure.
@@ -39,23 +64,6 @@ array_t *create_keypress_setup(array_t *flag_array);
  * @param array of their flags
  */
 void remove_keypress_setup(array_t *fd_array, array_t *flag_array);
-
-/**
- * @brief Opens the keyboard event device and sets it to non-blocking raw mode.
- * @param flags A pointer to an integer where the original file status flags
- * will be stored.
- * @return The file descriptor for the keyboard event device, or a negative
- * value on error.
- */
-[[nodiscard]] int create_keypress_setup_old(int *flags);
-
-/**
- * @brief Restores the original file status flags and closes the keyboard event
- * device.
- * @param fd The file descriptor of the keyboard event device.
- * @param flags The original file status flags to restore.
- */
-void remove_keypress_setup_old(int fd, int flags);
 
 /**
  * @brief Reads application settings from the configuration file.

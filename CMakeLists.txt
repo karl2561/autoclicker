@@ -12,7 +12,7 @@ file(GLOB_RECURSE SOURCES
 add_executable(autoclicker ${SOURCES})
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBUDEV IMPORTED_TARGET REQUIRED libudev)
+pkg_check_modules(libudev REQUIRED IMPORTED_TARGET libudev)
 
 target_link_libraries(autoclicker
     PRIVATE PkgConfig::libudev

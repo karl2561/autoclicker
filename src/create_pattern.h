@@ -8,6 +8,8 @@
 #include "utils/constants.h"
 #include "utils/handle_file.h"
 #include "utils/slist.h"
+#include <linux/input.h>
+#include <sys/poll.h>
 
 /**
  * @struct Movement
@@ -26,6 +28,14 @@ struct Movement {
  * responsible for freeing this memory.
  */
 [[nodiscard]] struct Movement *create_input(int x, int y);
+
+/**
+ * @brief Gets the next input event from pfds into ev
+ * @param captured event
+ * @param list of listeners
+ * @params number of listeners
+ */
+void get_input_event(struct input_event *ev, struct pollfd *pfds, size_t n);
 
 /**
  * @brief Records a mouse movement pattern.
