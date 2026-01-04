@@ -29,6 +29,7 @@ struct slist *head = nullptr;
 int main()
 {
 	struct printed_line *line;
+	create_abs_path();
 
 	if (read_config()) {
 		line = create_line("Couldn't read config file.\n");
@@ -79,18 +80,12 @@ int main()
 			change_autoclick_btn(fd_array);
 	}
 
-	if (write_config()) {
-		line = create_line("Couldn't write to config file.\n");
-		head = slist_push(head, line);
-		return 1;
-	}
-
 	stop_worker();
 	atomic_store(&worker_run, false);
 
+	slist_delete(&head, remove_line);
 	remove_keypress_setup(fd_array, flag_array);
 	array_free(flag_array);
 	array_free(fd_array);
-	slist_delete(&head, remove_line);
 	return 0;
 }

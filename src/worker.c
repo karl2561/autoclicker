@@ -3,6 +3,7 @@
  * @brief Implements the worker thread and task management for the autoclicker.
  */
 #include "worker.h"
+#include "utils/constants.h"
 
 #include <fcntl.h>
 #include <linux/input.h>
@@ -18,6 +19,7 @@
 
 /** @brief Atomic flag to control the main loop of the autoclicker threads. */
 atomic_bool worker_run = false;
+
 /** @brief The worker thread identifier. */
 thrd_t worker_thread;
 
@@ -59,8 +61,7 @@ void ac_clear()
 void ac_set_pattern(struct slist *new_pattern)
 {
 	mtx_lock(&job.mutex);
-	if (job.task.pattern)
-		slist_delete(&job.task.pattern, remove_item);
+	if (job.task.pattern) slist_delete(&job.task.pattern, remove_item);
 	job.task.pattern = new_pattern;
 	mtx_unlock(&job.mutex);
 }
@@ -163,8 +164,7 @@ void stop_worker()
 bool submit_task()
 {
 	atomic_store(&worker_run, !worker_run);
-	if (!worker_run)
-		return false;
+	if (!worker_run) return false;
 
 	atomic_store(&job.available, true);
 	cnd_signal(&job.cond);
@@ -267,8 +267,7 @@ int timer_thread(void *arg)
 
 	free(wait);
 	atomic_store(&worker_run, false);
-	if (head)
-		slist_delete(&head, remove_line);
+	if (head) slist_delete(&head, remove_line);
 	return 0;
 }
 
@@ -335,7 +334,7 @@ int pattern_thread(void *arg)
 	struct slist *head = job.task.pattern;
 	mtx_unlock(&job.mutex);
 
-	struct Movement abs_pos = {.x = 0, .y = 0};
+	struct Movement abs_pos = {.x = X_POS_START, .y = Y_POS_START};
 	struct timespec *wait = create_timespec(cfg.interval_ms);
 
 	struct slist *head_line = nullptr;

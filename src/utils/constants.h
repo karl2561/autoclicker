@@ -8,23 +8,22 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-constexpr char EVENT_PATH[] = "/dev/input/event";
-constexpr char UINPUT_PATH[] = "/dev/uinput";
-
-/**
- * Should not be hardcoded, may also change between runs.
- * discover correct event device at runtime.
- * */
-#define PATH_USB_MOUSE "/dev/input/by-id/usb-1bcf_USB_Optical_Mouse-event-mouse"
-
-/* Path is relative to the autoclicker executable */
-#define PATH_PATTERN_SAVE ".pattern"
-#define PATH_CONFIG_SAVE ".config"
-
+/* Sets the max length for a line, used for reading config, or input */
 #define MAX_LINE_LENGTH 128
+
+/* Ascii code for Esc or ^[ */
 #define ESC_KEY 27
 
+/* Sets the screenheight, shouldn't be hardcoded */
 #define SCREENHEIGHT 1080
+
+/* Sets the screenwidth, shouldn't be hardcoded */
 #define SCREENWIDTH 1920
+
+/* Sets the x coordinate to which the pattern is played from (relatively) */
+#define X_POS_START 0
+
+/* Sets the y coordinate to which the pattern is played from (relatively) */
+#define Y_POS_START 0
 
 #endif

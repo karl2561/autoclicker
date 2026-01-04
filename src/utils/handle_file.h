@@ -8,10 +8,28 @@
 
 #include "array_t.h"
 #include "config.h"
-#include "constants.h"
 #include "raw_mode.h"
 
 #include <libudev.h>
+#include <stdio.h>
+
+constexpr char EVENT_PATH[] = "/dev/input/event";
+constexpr char UINPUT_PATH[] = "/dev/uinput";
+
+/**
+ * @brief global variable for the file name of the config file.
+ */
+#define FNAME_PATTERN ".pattern"
+
+/**
+ * @brief global variable for the file name of the pattern file.
+ */
+#define FNAME_CONFIG ".config"
+
+/**
+ * @brief Creates the absolute paths for the config and pattern files
+ */
+void create_abs_path();
 
 /**
  * @brief Creates and configures a virtual input device using uinput.
@@ -66,15 +84,24 @@ array_t *create_keypress_setup(array_t *flag_array);
 void remove_keypress_setup(array_t *fd_array, array_t *flag_array);
 
 /**
+ * @brief Opens either config or pattern file with provided flags
+ * @param config on true, pattern on false
+ * @param flags with which to open the file with.
+ * @return FILE * on success, nullptr on failure.
+ */
+FILE *open_file(bool config, char const *flags);
+
+/**
  * @brief Reads application settings from the configuration file.
  * @return 0 on success, -1 if the config file cannot be opened.
  */
 extern int read_config();
 
 /**
- * @brief Writes the current application settings to the configuration file.
- * @return 0 on success, -1 if the config file cannot be opened for writing.
+ * @brief Saves the values from a setting at position to config
+ * @param position of the setting in config
+ * @return 0 on success, non-zero on failure
  */
-extern int write_config();
+int config_save(int position);
 
 #endif

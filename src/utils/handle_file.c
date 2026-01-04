@@ -4,15 +4,55 @@
  * management.
  */
 #include "handle_file.h"
-#include "array_t.h"
+#include "config.h"
+#include "constants.h"
 
 #include <fcntl.h>
+#include <libgen.h> // dirname()
+#include <linux/limits.h>
 #include <linux/uinput.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+
+/**
+ * @brief global variable for the path to the config file.
+ */
+static char PATH_CONFIG_FILE[PATH_MAX];
+
+/**
+ * @brief global variable for the path to the pattern file.
+ */
+static char PATH_PATTERN_FILE[PATH_MAX];
+
+/**
+ * @brief Creates the absolute paths for the config and pattern files
+ */
+void create_abs_path()
+{
+	ssize_t len;
+	char exe_path[PATH_MAX];
+
+	len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+	if (len == -1) {
+		perror("Failed to execute readlink");
+		exit(1);
+	}
+
+	exe_path[len] = '\0';
+
+	// get the dir - full path exculding the name of the apk at the end
+	dirname(exe_path);
+
+	snprintf(PATH_CONFIG_FILE, sizeof(PATH_CONFIG_FILE), "%s/%s", exe_path,
+		FNAME_CONFIG);
+
+	snprintf(PATH_PATTERN_FILE, sizeof(PATH_PATTERN_FILE), "%s/%s",
+		exe_path, FNAME_PATTERN);
+}
 
 /**
  * @brief Creates and configures a virtual input device using uinput.
@@ -24,8 +64,7 @@
 int create_autokey_setup(int keycode)
 {
 	int fd = open(UINPUT_PATH, O_WRONLY | O_NONBLOCK);
-	if (fd < 0)
-		return fd;
+	if (fd < 0) return fd;
 
 	ioctl(fd, UI_SET_EVBIT, EV_KEY);
 	ioctl(fd, UI_SET_KEYBIT, keycode);
@@ -89,8 +128,7 @@ array_t *get_input_device_list(
 	struct udev *udev = udev_new();
 	array_t *i = array_init(sizeof(int));
 	struct udev_enumerate *e = udev_enumerate_new(udev);
-	if (!udev || !i || !e)
-		goto error;
+	if (!udev || !i || !e) goto error;
 
 	udev_enumerate_add_match_subsystem(e, "input");
 	udev_enumerate_add_match_property(e, property, value);
@@ -104,8 +142,7 @@ array_t *get_input_device_list(
 	udev_list_entry_foreach(entry, udev_enumerate_get_list_entry(e))
 	{
 		path = udev_list_entry_get_name(entry);
-		if (!(dev = udev_device_new_from_syspath(udev, path)))
-			continue;
+		if (!(dev = udev_device_new_from_syspath(udev, path))) continue;
 
 		if ((devnode = udev_device_get_devnode(dev)) &&
 			strncmp(devnode, EVENT_PATH, event_len) == 0) {
@@ -124,12 +161,9 @@ array_t *get_input_device_list(
 
 	return i;
 error:
-	if (udev)
-		free(udev);
-	if (i)
-		free(i);
-	if (e)
-		free(e);
+	if (udev) free(udev);
+	if (i) free(i);
+	if (e) free(e);
 
 	return nullptr;
 }
@@ -144,8 +178,7 @@ array_t *open_files(array_t *files)
 	char path[MAX_LINE_LENGTH];
 	int n, value, fd;
 	array_t *fd_array = array_init(sizeof(int));
-	if (!fd_array)
-		return nullptr;
+	if (!fd_array) return nullptr;
 	for (size_t i = 0; i < files->len; i++) {
 		value = ((int *)files->data)[i];
 		n = snprintf(path, MAX_LINE_LENGTH, "%s%d", EVENT_PATH, value);
@@ -155,12 +188,12 @@ array_t *open_files(array_t *files)
 		}
 
 		if ((fd = open(path, O_RDONLY)) < 0) {
-			perror("Could not open file");
+			perror("Could not open file to read input events");
 			continue;
 		}
 
 		if (array_push(fd_array, &fd) < 0) {
-			perror("Failed to push fd");
+			perror("Failed to push fd to read input events");
 			close(fd);
 			break;
 		}
@@ -190,15 +223,12 @@ array_t *create_keypress_setup(array_t *flag_array)
 	raw_mode_setup();
 	array_t *keyboard = nullptr;
 	array_t *fd_array = nullptr;
-	if (!flag_array)
-		goto error;
+	if (!flag_array) goto error;
 	keyboard = get_input_device_list("ID_INPUT_KEYBOARD", "1");
-	if (!keyboard)
-		goto error;
+	if (!keyboard) goto error;
 
 	fd_array = open_files(keyboard);
-	if (!fd_array)
-		goto error;
+	if (!fd_array) goto error;
 
 	for (size_t i = 0; i < fd_array->len; i++) {
 		fd = ((int *)fd_array->data)[i];
@@ -223,10 +253,8 @@ array_t *create_keypress_setup(array_t *flag_array)
 	free(keyboard);
 	return fd_array;
 error:
-	if (keyboard)
-		array_free(keyboard);
-	if (fd_array)
-		array_free(fd_array);
+	if (keyboard) array_free(keyboard);
+	if (fd_array) array_free(fd_array);
 	return nullptr;
 }
 
@@ -238,11 +266,9 @@ error:
 void remove_keypress_setup(array_t *fd_array, array_t *flag_array)
 {
 	bool setflags = true;
-	if (!fd_array)
-		return;
+	if (!fd_array) return;
 
-	if (!flag_array || fd_array->len != flag_array->len)
-		setflags = false;
+	if (!flag_array || fd_array->len != flag_array->len) setflags = false;
 
 	int value, flags;
 	for (size_t i = 0; i < fd_array->len; i++) {
@@ -258,30 +284,20 @@ void remove_keypress_setup(array_t *fd_array, array_t *flag_array)
 }
 
 /**
- * @brief Inserts a configuration value from a line of text into the config
- * struct.
- * @param position The index in `cfg_map` corresponding to the config setting.
- * @param line The line of text from the config file.
+ * @brief Opens either config or pattern file with provided flags
+ * @param config on true, pattern on false
+ * @param flags with which to open the file with.
+ * @return FILE * on success, nullptr on failure.
  */
-static void insert_from_configs(int position, char *line)
+FILE *open_file(bool config, char const *flags)
 {
-	int length = strlen(cfg_map[position].name);
-	if (strncmp(line, cfg_map[position].name, length))
-		return;
+	FILE *file;
+	if (config)
+		file = fopen(PATH_CONFIG_FILE, flags);
+	else
+		file = fopen(PATH_PATTERN_FILE, flags);
 
-	int tmp_value;
-	// returns 1 if it read one int successfully.
-	// returns 0 if it saw something, but couldn't parsse it
-	// returns EOF (usually -1) -> end of input or empty line
-	if (sscanf(line + length + 1, "%d", &tmp_value) != 1)
-		return;
-
-	if (cfg_map[position].type == CFG_KEY)
-		*(int *)cfg_map[position].field = tmp_value;
-	if (cfg_map[position].type == CFG_BTN)
-		*(int *)cfg_map[position].field = tmp_value;
-	else if (cfg_map[position].type == CFG_INT_A)
-		atomic_store((atomic_int *)cfg_map[position].field, tmp_value);
+	return file;
 }
 
 /**
@@ -290,33 +306,73 @@ static void insert_from_configs(int position, char *line)
  */
 int read_config()
 {
-	FILE *fconf = fopen(PATH_CONFIG_SAVE, "r");
-	if (!fconf)
+	FILE *fconf = open_file(true, "r");
+	if (!fconf) {
+		perror("Couldn't open config file to read existing config");
 		return -1;
+	}
 
 	char line[MAX_LINE_LENGTH];
+	char key[MAX_LINE_LENGTH];
+	int value;
 	while (fgets(line, sizeof(line), fconf))
-		for (size_t i = 0; i < cfg_map_length; i++)
-			insert_from_configs(i, line);
+		for (size_t i = 0; i < cfg_map_length; i++) {
+			if (sscanf(line, "%[^=]=%d", key, &value) != 2)
+				continue; // line invalid
+			else if (strcmp(key, cfg_map[i].name) != 0)
+				continue; // wrong line
+
+			if (cfg_map[i].type == CFG_KEY)
+				*(int *)cfg_map[i].field = value;
+			if (cfg_map[i].type == CFG_BTN)
+				*(int *)cfg_map[i].field = value;
+			else if (cfg_map[i].type == CFG_INT_A)
+				atomic_store(
+					(atomic_int *)cfg_map[i].field, value);
+		}
 
 	fclose(fconf);
 	return 0;
 }
 
 /**
- * @brief Writes the current application settings to the configuration file.
- * @return 0 on success, -1 if the config file cannot be opened for writing.
+ * @brief Writes the new value to settings file
+ * @param position of the setting to change
+ * @return 0 on success, non-zero on failure
  */
-int write_config()
+int config_save(int position)
 {
-	FILE *fconf = fopen(PATH_CONFIG_SAVE, "w");
-	if (!fconf)
-		return -1;
-
-	for (size_t i = 0; i < cfg_map_length; i++) {
-		int value = convert_field_to_int(i);
-		fprintf(fconf, "%s=%d\n", cfg_map[i].name, value);
+	FILE *fconf = fopen(PATH_CONFIG_FILE, "r+");
+	if (!fconf) {
+		perror("Couldn't open config file to save config");
+		return 1;
 	}
+
+	char line[MAX_LINE_LENGTH];
+	char key[MAX_LINE_LENGTH];
+	int tmp;
+	long line_start;
+	bool found = false;
+	while ((line_start = ftell(fconf)), fgets(line, sizeof(line), fconf)) {
+		if (sscanf(line, "%[^=]=%d", key, &tmp) != 2)
+			continue; // line invalid
+
+		if (strcmp(key, cfg_map[position].name) == 0) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		perror("Couldn't find setting");
+		fclose(fconf);
+		return 1;
+	}
+
+	// This is more stable, could even extract format and make it global.
+	fseek(fconf, line_start, SEEK_SET);
+	fprintf(fconf, "%s=%03d\n", key, *(int *)cfg_map[position].field);
+	// fflush(fconf); // only needed if I don't close the file
 
 	fclose(fconf);
 	return 0;

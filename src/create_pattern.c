@@ -73,17 +73,14 @@ struct slist *create_pattern()
 	struct pollfd *pfds = nullptr;
 
 	array_t *input_mice = get_input_device_list("ID_INPUT_MOUSE", "1");
-	if (!input_mice)
-		goto error;
+	if (!input_mice) goto error;
 
 	fd_array = open_files(input_mice);
-	if (!fd_array)
-		goto error;
+	if (!fd_array) goto error;
 
 	size_t n = input_mice->len;
 	pfds = calloc(n, sizeof(struct pollfd));
-	if (!pfds)
-		goto error;
+	if (!pfds) goto error;
 
 	for (size_t i = 0; i < n; i++) {
 		pfds[i].fd = ((int *)fd_array->data)[i];
@@ -92,36 +89,29 @@ struct slist *create_pattern()
 
 	int x = 0, y = 0;
 	while (true) {
-		if (poll(pfds, n, -1) < 0)
-			goto error;
+		if (poll(pfds, n, -1) < 0) goto error;
 
 		get_input_event(&ev, pfds, n);
 		for (size_t i = 0; i < n; i++)
 			pfds[i].revents = 0;
 
 		if (ev.type == EV_REL) {
-			if (ev.code == REL_X)
-				x += ev.value;
-			if (ev.code == REL_Y)
-				y += ev.value;
+			if (ev.code == REL_X) x += ev.value;
+			if (ev.code == REL_Y) y += ev.value;
 			continue;
 		}
 
-		if (ev.type != EV_KEY || ev.value != 1)
-			continue;
+		if (ev.type != EV_KEY || ev.value != 1) continue;
 
 		// make this dynamic later
-		if (ev.code == BTN_RIGHT)
-			break;
+		if (ev.code == BTN_RIGHT) break;
 
 		if (ev.code == cfg.key_pressed) {
 			tail = slist_append(tail, create_input(x, y));
 
-			if (!head)
-				head = tail;
+			if (!head) head = tail;
 
-			if (!tail)
-				goto error;
+			if (!tail) goto error;
 
 			x = 0, y = 0;
 		}
@@ -129,16 +119,14 @@ struct slist *create_pattern()
 
 	return head;
 error:
-	if (input_mice)
-		array_free(input_mice);
+	if (input_mice) array_free(input_mice);
 
 	if (fd_array) {
 		array_forEach(fd_array, close_file);
 		array_free(fd_array);
 	}
 
-	if (head)
-		slist_delete(&head, remove_item);
+	if (head) slist_delete(&head, remove_item);
 	return nullptr;
 }
 
@@ -182,9 +170,9 @@ void print_item(void *data)
  */
 struct slist *read_pattern()
 {
-	FILE *fconf = fopen(PATH_PATTERN_SAVE, "r");
-	if (!fconf)
-		return nullptr;
+	FILE *fconf = open_file(false, "r");
+	if (!fconf) return nullptr;
+
 	char line[MAX_LINE_LENGTH];
 	struct slist *head = nullptr;
 	struct slist *tail = nullptr;
@@ -195,14 +183,12 @@ struct slist *read_pattern()
 			goto error;
 		}
 		struct Movement *pattern = create_input(x_val, y_val);
-		if (!pattern)
-			goto error;
+		if (!pattern) goto error;
 		if (!head)
 			head = tail = slist_append(nullptr, pattern);
 		else
 			tail = slist_append(tail, pattern);
-		if (!tail)
-			goto error;
+		if (!tail) goto error;
 	}
 
 	fclose(fconf);
@@ -225,9 +211,8 @@ error:
  */
 int write_pattern(struct slist *head)
 {
-	FILE *fconf = fopen(PATH_PATTERN_SAVE, "w");
-	if (!fconf)
-		return -1;
+	FILE *fconf = open_file(false, "w");
+	if (!fconf) return -1;
 
 	for (struct slist *node = head; node; node = node->next) {
 		struct Movement *pattern = node->data;

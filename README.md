@@ -8,6 +8,11 @@ This program allows you to automate mouse clicks. It provides multiple modes for
 
 **Disclaimer:** This project is designed for Linux and interacts directly with low-level input devices. It requires running with sufficient permissions (e.g., as root or by adding the user to the `input` group) to read keyboard events and create a virtual mouse device.
 
+Use this command to add yourself to the input group, not requiring sudo:
+```
+sudo usermod -aG input $(whoami)
+```
+
 ## Features
 
 *   **Multiple Clicking Modes:**
@@ -19,23 +24,13 @@ This program allows you to automate mouse clicks. It provides multiple modes for
 *   **Runtime Configuration:** Change settings like click interval and mode on the fly using hotkeys.
 *   **Persistent Configuration:** Your settings are saved to a `.config` file in the same directory as the executable and loaded on startup.
 
-## WARNING: create_pattern
-
-Recording and playing a pattern technically works, the coordinates are being captured correctly, saved and replayed. However due to limitations on my window manager wayland I could not fully test that feature.
-
-Due to the limitations I didn't bother to dynamically get the screensize.
-Currently it is hardcoded in constants.h.
-
-Also the pattern currently always starts at 0,0 due to the lack of abs coordinates.
-Additionally there could be scaling applied by your window manager, distoring the coordinates.
-
 ## Building from Source
 
 This project uses CMake.
 
 1.  **Clone the repository:**
     ```sh
-    git clone <repository-url>
+    git clone https://github.com/karl2561/autoclicker
     cd autoclicker
     ```
 
@@ -53,7 +48,7 @@ This project uses CMake.
 
 ## Usage
 
-Run the executable with superuser privileges:
+Run the executable with superuser privileges or without if you are in the input group:
 ```sh
 sudo ./autoclicker
 ```
@@ -89,6 +84,24 @@ The project is documented using Doxygen. To generate the documentation:
     ```
     The output will be in the `build/docs/` directory.
 
+## Warning: create_pattern
+
+Recording and playing a pattern technically works, the coordinates are being captured correctly, saved and replayed.
+
+However due to limitations on my window manager wayland I could not fully test nor implement it.
+Current limitations:
+  - Hardcoded screensize (height & width inside constants.h)
+  - Hardcoded starting coordinates (0, 0) due to lack of absolute coordinates.
+  - Scaling applied by the window manager is ignored, distoring the coordinates.
+
+This feature could greatly improved with several ideas allowing:
+  - To store multiple patterns (easily achieved by storing them each as a file inside a dir, listing them all for the user to pick, overwrite, name or delete)
+  - Not only storing the position but also the KEY_ID to not only allow mouse presses, but also any other input
+  - Storing the delay between presses (or setting it programmatically, leaving it blank to default to the current setting) to allow for custom delays
+  - Being able to create composite patterns which repeat subpatterns a certain amount or chaining different subpattern together.
+  - This allows to easily share patterns (they just must exist int the specified dir)
+  - Interface to programmatically create patterns (entering coordinates, delay and key for each keystrokes
+
 ## License
 
-This project is not licensed. Please add a license file.
+Licensed unter MIT License

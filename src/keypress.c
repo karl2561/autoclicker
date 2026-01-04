@@ -3,6 +3,8 @@
  * @brief Implements functions for handling user input and menu interactions.
  */
 #include "keypress.h"
+#include "utils/config.h"
+#include "utils/handle_file.h"
 
 #include <linux/input.h>
 #include <stdio.h>
@@ -10,8 +12,27 @@
 #include <sys/poll.h>
 #include <unistd.h>
 
+/**
+ * @brief Displays a standard exit/confirm menu and waits for user input.
+ * @details Prints options to save, quit, or redo, then waits for the user to
+ * press Enter, ESC, or 'r'. Cleans up all printed lines associated with the
+ * menu upon exit.
+ * @param head_ptr A pointer to the head of an `slist` of `printed_line` structs
+ * to be cleaned up.
+ * @return The character code of the user's choice ('\n', ESC_KEY, 'r', or -1 on
+ * error).
+ */
 static int exit_function(struct slist **head_ptr, array_t *fd_array);
+
+/**
+ * @brief Waits for the user to press a specific key or the exit key to close a
+ * menu.
+ * @param head_ptr A pointer to the head of the `slist` of lines to be removed
+ * upon closing.
+ * @param key_code The special key code that also closes the menu.
+ */
 static void close_menu(struct slist **head_ptr, array_t *fd_array);
+
 /** @brief List head for lines printed by `autoclick_toggle` to be
  * cleared later. */
 static struct slist *start_line = nullptr;
@@ -32,8 +53,7 @@ int get_input(array_t *fd_array)
 	struct input_event ev;
 	size_t n = fd_array->len;
 	struct pollfd *pfds = calloc(n, sizeof(struct pollfd));
-	if (!pfds)
-		return -1;
+	if (!pfds) return -1;
 
 	/* Setup pollfds to drain old events */
 	for (size_t i = 0; i < n; i++) {
@@ -53,12 +73,10 @@ int get_input(array_t *fd_array)
 		}
 
 		for (size_t i = 0; i < n; i++) {
-			if (!(pfds[i].revents & POLLIN))
-				continue;
+			if (!(pfds[i].revents & POLLIN)) continue;
 			if (read(pfds[i].fd, &ev, sizeof(ev)) != sizeof(ev))
 				continue;
-			if (ev.type != EV_KEY || ev.value != 1)
-				continue;
+			if (ev.type != EV_KEY || ev.value != 1) continue;
 			if (ev.code != cfg.key_pressed) {
 				free(pfds);
 				return ev.code;
@@ -122,8 +140,7 @@ start:
 	line = create_line("Select which key you want to change\n");
 	head = slist_push(head, line);
 	for (int i = 0; i < (int)cfg_map_length; i++) {
-		if (cfg_map[i].type != CFG_KEY)
-			continue;
+		if (cfg_map[i].type != CFG_KEY) continue;
 		j += (1 << i);
 		name = get_name(i);
 		line = create_line("Press %d to change %s\n", i, name);
@@ -137,11 +154,7 @@ start:
 		slist_delete(&head, remove_line);
 		return;
 	}
-	/* using stdin
-	int value = c - '0';
-	if (!isdigit(c) || !(j & (1 << value))) {
-	 * using get_input
-	 */
+
 	int value = (c - 1) % 10;
 	if (c < 2 || c > 11 || !(j & (1 << value))) {
 		line = create_line("Invalid selection, try again\n");
@@ -162,17 +175,10 @@ select_key:
 		"Press the key you wish to be the new activation key\n");
 	head = slist_push(head, line);
 
-	/* using stdin
-	c = get_keycode_stdin();
-	if (c == -1) {
-	slist_delete(&head, remove_line);
-	return;
-	*/
 	c = get_input(fd_array);
 
 	for (int i = 0; i < (int)cfg_map_length; i++) {
-		if (cfg_map[i].type != CFG_KEY)
-			continue;
+		if (cfg_map[i].type != CFG_KEY) continue;
 		field_code = convert_field_to_int(i);
 		if (c == field_code) {
 			name = get_name(i);
@@ -199,6 +205,7 @@ select_key:
 	}
 
 	*(int *)cfg_map[value].field = c;
+	config_save(value);
 }
 
 /**
@@ -253,6 +260,8 @@ start:
 		cfg.key_pressed = BTN_RIGHT;
 	else
 		cfg.key_pressed = c;
+
+	config_save(key_pressed);
 }
 /**
  * @brief Provides a menu for the user to change the autoclick interval.
@@ -284,7 +293,9 @@ start:
 		return;
 	case '\n':
 	}
+
 	cfg.interval_ms = result;
+	config_save(interval_ms);
 }
 
 /**
@@ -296,8 +307,7 @@ start:
  */
 void autoclick_toggle()
 {
-	if (start_line != nullptr)
-		slist_delete(&start_line, remove_line);
+	if (start_line != nullptr) slist_delete(&start_line, remove_line);
 
 	if (submit_task()) {
 		struct printed_line *line;
@@ -441,8 +451,7 @@ start:
  */
 int exit_function(struct slist **head_ptr, array_t *fd_array)
 {
-	if (!head_ptr)
-		return -1;
+	if (!head_ptr) return -1;
 
 	struct printed_line *line;
 
@@ -482,8 +491,7 @@ int exit_function(struct slist **head_ptr, array_t *fd_array)
  */
 void close_menu(struct slist **head_ptr, array_t *fd_array)
 {
-	if (!head_ptr)
-		return;
+	if (!head_ptr) return;
 
 	int c;
 	while ((c = get_input(fd_array))) {
